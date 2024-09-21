@@ -1,0 +1,15 @@
+[project]
+name = "mytools"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "feedparser>=6.0.11",
+    "pyquery>=2.0.1",
+    "requests>=2.32.3",
+]
+
+[project.scripts]
+mytools = "mytools.main:main"
