@@ -5,9 +5,6 @@ import feedparser  # type: ignore
 from bs4 import BeautifulSoup
 
 sources = [
-    "https://www.sozcu.com.tr/feeds-rss-category-sozcu",
-    "https://www.ntv.com.tr/gundem.rss",
-    "https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_NEWS",
     "https://hackaday.com/blog/feed/",
     "https://www.engadget.com/rss.xml",
     "https://feeds.arstechnica.com/arstechnica/index",
@@ -16,6 +13,20 @@ sources = [
     "https://www.bleepingcomputer.com/feed/",
     "https://lobste.rs/rss",
 ]
+
+def load_sources():
+    global sources
+    sources_file = "news_sources.txt"
+    home_sources_file = os.path.expanduser("~/.news_sources.txt")
+    
+    if os.path.exists(sources_file):
+        with open(sources_file, "r") as f:
+            sources = f.readlines()
+    elif os.path.exists(home_sources_file):
+        with open(home_sources_file, "r") as f:
+            sources = f.readlines()
+    else:
+        print("No sources file found. Using default sources.")
 
 news_cache = {}
 source_index = 0
@@ -62,6 +73,7 @@ def news_loop(stdscr: curses.window, key: int):
     global source_index
     global news_index
     global news
+    load_sources()
 
     def print_loading(win: curses.window):
         win.clear()

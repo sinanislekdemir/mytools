@@ -1,0 +1,10 @@
+https://www.sozcu.com.tr/feeds-rss-category-sozcu
+https://www.ntv.com.tr/gundem.rss
+https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_NEWS
+https://hackaday.com/blog/feed/
+https://www.engadget.com/rss.xml
+https://feeds.arstechnica.com/arstechnica/index
+https://techcrunch.com/feed/
+https://krebsonsecurity.com/feed/
+https://www.bleepingcomputer.com/feed/
+https://lobste.rs/rss

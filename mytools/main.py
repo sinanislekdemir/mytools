@@ -38,6 +38,37 @@ def main_loop(stdscr: curses.window):
         key = stdscr.getch()
         if key == ord("q"):
             break
+
+        if key == curses.KEY_F1:
+            helpwin = curses.newwin(17, 50, 5, 5)
+            helpwin.box()
+            helpwin.addstr(1, 2, "Help", curses.color_pair(1))
+            helpwin.addstr(3, 2, "F1: Help", curses.color_pair(1))
+            helpwin.addstr(4, 2, "F2: Sensors", curses.color_pair(1))
+            helpwin.addstr(5, 2, "F3: News", curses.color_pair(1))
+            helpwin.addstr(6, 2, "F4: Network", curses.color_pair(1))
+            helpwin.addstr(7, 2, "Q: Quit", curses.color_pair(1))
+
+            helpwin.addstr(1, 14, "Sensor View:", curses.color_pair(2))
+            helpwin.addstr(2, 14, "C: Combined view", curses.color_pair(1))
+            helpwin.addstr(3, 14, "H: Hide command", curses.color_pair(1))
+
+            helpwin.addstr(4, 14, "News View:", curses.color_pair(2))
+            helpwin.addstr(5, 14, "Left/Right: Change source", curses.color_pair(1))
+            helpwin.addstr(6, 14, "Enter: Read news", curses.color_pair(1))
+            helpwin.addstr(7, 14, "O: Browse news", curses.color_pair(1))
+
+            helpwin.addstr(8, 14, "Network View:", curses.color_pair(2))
+            helpwin.addstr(9, 14, "C: Clean past data", curses.color_pair(1))
+            helpwin.addstr(10, 14, "H: Hide HTTP", curses.color_pair(1))
+            helpwin.addstr(11, 14, "R: Refresh", curses.color_pair(1))
+            helpwin.addstr(13, 2, "You can edit ~/.news_sources.txt", curses.color_pair(1))
+            helpwin.addstr(14, 2, "to add your own news sources", curses.color_pair(1))
+
+            helpwin.addnstr(15, 14, "sinan@islekdemir.com", 20, curses.color_pair(3))
+            helpwin.refresh()
+            key = helpwin.getch()
+
         if key == curses.KEY_F2:
             mode = "system"
             stdscr.nodelay(True)
@@ -68,6 +99,8 @@ def main_loop(stdscr: curses.window):
         if mode == "network":
             network_color = 6
         stdscr.addstr(0, 26, " [F4] Network ", curses.color_pair(network_color))
+
+        stdscr.addstr(0, width-14, " [F1] Help ", curses.color_pair(1))
 
         if mode == "system":
             if key == ord("h"):
