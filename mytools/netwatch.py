@@ -76,9 +76,9 @@ def get_ss_tnp_output(max_items: int) -> dict:
             value[0] = "RED!" + value[0]
             nlist.append(value)
 
-    result = {"Network": nlist[:max_items]}
+    result_dict = {"Network": nlist[:max_items]}
 
-    return result
+    return result_dict
 
 
 def network_loop(stdscr: curses.window):

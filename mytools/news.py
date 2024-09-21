@@ -1,7 +1,7 @@
 import curses
 import os
 
-import feedparser
+import feedparser  # type: ignore
 from bs4 import BeautifulSoup
 
 sources = [
@@ -72,9 +72,9 @@ def news_loop(stdscr: curses.window, key: int):
     def print_border(win: curses.window):
         win.box()
         win.refresh()
-        win.keypad(1)
-        win.nodelay(1)
-        win.scrollok(1)
+        win.keypad(True)
+        win.nodelay(True)
+        win.scrollok(True)
         win.timeout(1000)
         win.addstr(0, 2, "[", curses.color_pair(0))
         win.addstr(0, 3, f"News {sources[source_index]}", curses.color_pair(6))

@@ -8,13 +8,13 @@ HORIZONTAL_LINE = "─"
 VERTICAL_LINE = "│"
 
 
-def draw_panel(stdscr, title: str, data: dict, y: int, x: int, w: int, h: int):
+def draw_panel(stdscr: curses.window, title: str, data: dict, y: int, x: int, w: int, h: int):
     """Draw a panel with a title and data in a box"""
     panel_area = curses.newwin(h, w, y, x)
     panel_area.box()
-    panel_area.keypad(1)
-    panel_area.nodelay(1)
-    panel_area.scrollok(1)
+    panel_area.keypad(True)
+    panel_area.nodelay(True)
+    panel_area.scrollok(True)
     panel_area.timeout(1000)
     panel_area.addstr(0, 2, f"[{title}]", curses.color_pair(8))
 

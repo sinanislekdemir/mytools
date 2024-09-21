@@ -1,7 +1,7 @@
 import curses
 import time
 
-from mytools.network import clean_past_data, network_loop, toggle_hide_http
+from mytools.netwatch import clean_past_data, network_loop, toggle_hide_http
 from mytools.news import news_loop
 from mytools.sensors import switch_combined, switch_hide_command, system_loop
 
@@ -10,7 +10,7 @@ def main_loop(stdscr: curses.window):
     stdscr.clear()
     stdscr.refresh()
     curses.curs_set(0)
-    stdscr.nodelay(1)
+    stdscr.nodelay(True)
     curses.start_color()
     curses.cbreak()
     curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
@@ -40,19 +40,19 @@ def main_loop(stdscr: curses.window):
             break
         if key == curses.KEY_F2:
             mode = "system"
-            stdscr.nodelay(1)
+            stdscr.nodelay(True)
             stdscr.clear()
             stdscr.refresh()
 
         if key == curses.KEY_F3:
             mode = "news"
-            stdscr.nodelay(0)
+            stdscr.nodelay(False)
             stdscr.clear()
             stdscr.refresh()
 
         if key == curses.KEY_F4:
             mode = "network"
-            stdscr.nodelay(1)
+            stdscr.nodelay(True)
             stdscr.clear()
             stdscr.refresh()
 

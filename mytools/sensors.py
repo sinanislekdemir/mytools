@@ -86,29 +86,29 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
         for line in result[1:]:
             if not line:
                 continue
-            line = line.split()
-            if line[10] == "ps":
+            line_parts = line.split()
+            if line_parts[10] == "ps":
                 continue
             pre = ""
             if sort == "-rss":
-                if float(line[3]) > 50:
+                if float(line_parts[3]) > 50:
                     pre = "RED!"
-                elif float(line[3]) > 20:
+                elif float(line_parts[3]) > 20:
                     pre = "YELLOW!"
             if sort == "-%cpu":
-                if float(line[2]) > 50:
+                if float(line_parts[2]) > 50:
                     pre = "RED!"
-                elif float(line[2]) > 20:
+                elif float(line_parts[2]) > 20:
                     pre = "YELLOW!"
             processes.append(
                 [
-                    line[1],
-                    line[0],
-                    line[3],
-                    line[2],
-                    pre + " ".join(line[10:]),
-                    bytes_to_human_readable(int(line[5])),
-                    bytes_to_human_readable(int(line[4])),
+                    line_parts[1],
+                    line_parts[0],
+                    line_parts[3],
+                    line_parts[2],
+                    pre + " ".join(line_parts[10:]),
+                    bytes_to_human_readable(int(line_parts[5])),
+                    bytes_to_human_readable(int(line_parts[4])),
                 ]
             )
             if len(processes) == n + 1:
@@ -118,23 +118,23 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
         for line in result[1:]:
             if not line:
                 continue
-            line = line.split()
-            cmd = line[10]
+            line_parts = line.split()
+            cmd = line_parts[10]
             if cmd == "ps":
                 continue
             if cmd not in cmdmap:
                 cmdmap[cmd] = [
-                    line[1],
-                    line[0],
-                    line[3],
-                    line[2],
-                    line[10],
-                    line[5],
-                    line[4],
+                    line_parts[1],
+                    line_parts[0],
+                    line_parts[3],
+                    line_parts[2],
+                    line_parts[10],
+                    line_parts[5],
+                    line_parts[4],
                 ]
             else:
-                mem = float(cmdmap[cmd][2]) + float(line[3])
-                cpu = float(cmdmap[cmd][3]) + float(line[2])
+                mem = float(cmdmap[cmd][2]) + float(line_parts[3])
+                cpu = float(cmdmap[cmd][3]) + float(line_parts[2])
                 mem_str = f"{mem:.2f}"
                 cpu_str = f"{cpu:.2f}"
                 pre = ""
@@ -150,9 +150,9 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
                         pre = "YELLOW!"
                 cmdmap[cmd][2] = mem_str
                 cmdmap[cmd][3] = cpu_str
-                cmdmap[cmd][5] = str(int(cmdmap[cmd][5]) + int(line[5]))
-                cmdmap[cmd][6] = str(int(cmdmap[cmd][6]) + int(line[4]))
-                cmdmap[cmd][4] = pre + line[10]
+                cmdmap[cmd][5] = str(int(cmdmap[cmd][5]) + int(line_parts[5]))
+                cmdmap[cmd][6] = str(int(cmdmap[cmd][6]) + int(line_parts[4]))
+                cmdmap[cmd][4] = pre + line_parts[10]
         procs = [
             [
                 cmdmap[cmd][0],
@@ -179,9 +179,9 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
 
 
 def get_total_and_free_memory(num_lines: int) -> dict:
-    mem_total = ""
-    mem_free = ""
-    mem_available = ""
+    mem_total = 0
+    mem_free = 0
+    mem_available = 0
     with open("/proc/meminfo", "r") as file:
         for line in file:
             key, value = line.split(":", 1)
