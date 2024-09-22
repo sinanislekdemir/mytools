@@ -356,12 +356,13 @@ def system_loop(stdscr: curses.window):
         memory_width,
         cpu_area_height // 2 + 1,
     )
-    draw_panel(
-        stdscr,
-        "Thermal zones",
-        get_thermal_data(),
-        cpu_area_height + 1,
-        0,
-        width,
-        thermal_area_height,
-    )
+    if thermal_area_height > 2:
+        draw_panel(
+            stdscr,
+            "Thermal zones",
+            get_thermal_data(),
+            cpu_area_height + 1,
+            0,
+            width,
+            thermal_area_height,
+        )
