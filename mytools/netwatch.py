@@ -1,16 +1,36 @@
 import curses
+import socket
 import subprocess
 import time
+from functools import lru_cache
 
 from mytools.ui import draw_panel
 
-past_data = None
+past_data = {}
 hide_http = False
+
+
+@lru_cache
+def reverse_nslookup(ip):
+    try:
+        host, _, _ = socket.gethostbyaddr(ip)
+        return host
+    except socket.herror:
+        return ip
+
+
+def time_to_str(seconds):
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 
 def clean_past_data():
     global past_data
-    past_data = None
+    for key in list(past_data.keys()):
+        if not past_data[key][8]:
+            del past_data[key]
 
 
 def toggle_hide_http():
@@ -33,6 +53,7 @@ def get_ss_tnp_output(max_items: int) -> dict:
             "Local Address",
             "Peer Address",
             "Process",
+            "Reverse NS",
             "Time",
         ]
     )
@@ -41,51 +62,74 @@ def get_ss_tnp_output(max_items: int) -> dict:
         if not line:
             continue
         parts = line.split()
-        if hide_http:
-            port = parts[4].split(":")[1]
-            if port == "80" or port == "443":
-                continue
-
+        parts = [part.strip() for part in parts]
         if len(parts) < 6:
             # make it 6 parts
             parts.extend([""] * (6 - len(parts)))
 
-        parts.append(time.strftime("%H:%M:%S"))
-        nlist.append(parts)
-        nlist_raw.append(parts)
+        key = f"{parts[3]}{parts[4]}{parts[5]}"
+        nlist_raw.append(key)
+        if key not in past_data:
+            past_data[key] = [
+                parts[0],
+                parts[1],
+                parts[2],
+                parts[3],
+                parts[4],
+                parts[5],
+                reverse_nslookup(parts[4].split(":")[0]),
+                time.monotonic(),
+                True,
+            ]
 
-    if past_data is None:
-        past_data = {
-            f"{nlist[i][3]}, {nlist[i][4]}, {nlist[i][5]}": nlist[i]
-            for i in range(1, len(nlist))
-        }
+    for key in past_data:
+        if key not in nlist_raw:
+            if past_data[key][8]:
+                past_data[key][8] = False
+                past_data[key][0] = past_data[key][0]
+                past_data[key][7] = time.monotonic() - past_data[key][7]
 
-    for i in range(1, len(nlist)):
-        check = f"{nlist[i][3]}, {nlist[i][4]}, {nlist[i][5]}"
-
-        if check not in past_data:
-            nlist[i][0] = "GREEN!" + nlist[i][0]
-            past_data[check] = nlist[i]
-            past_data[check][0] = past_data[check][0][6:]
+    print_list = []
+    print_list.extend(nlist)
 
     for key, value in past_data.items():
-        if key not in [
-            f"{nlist_raw[i][3]}, {nlist_raw[i][4]}, {nlist_raw[i][5]}"
-            for i in range(1, len(nlist_raw))
-        ]:
-            value[0] = "RED!" + value[0]
-            nlist.append(value)
+        if hide_http and value[4].split(":")[1] in ["80", "443"]:
+            continue
+        if not value[8]:
+            print_list.append(
+                [
+                    "RED!" + value[0],
+                    "",
+                    "",
+                    value[3],
+                    value[4],
+                    value[5],
+                    value[6],
+                    time_to_str(value[7]),
+                ]
+            )
+        else:
+            now = time.monotonic()
+            print_list.append(
+                [
+                    value[0],
+                    value[1],
+                    value[2],
+                    value[3],
+                    value[4],
+                    value[5],
+                    value[6],
+                    time_to_str(now - value[7]),
+                ]
+            )
 
-    result_dict = {"Network": nlist[:max_items]}
+    result_dict = {"Network": print_list[:max_items]}
 
     return result_dict
 
 
 def network_loop(stdscr: curses.window):
     height, width = stdscr.getmaxyx()
-    height -= 2
+    height -= 1
     items = height - 2
-    draw_panel(stdscr, "Network", get_ss_tnp_output(items), 1, 0, width, height - 2)
-    stdscr.addstr(
-        height - 1, 1, "C: Clean past data H: Hide HTTP", curses.color_pair(0)
-    )
+    draw_panel(stdscr, "Network", get_ss_tnp_output(items), 1, 0, width, height)

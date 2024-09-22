@@ -8,7 +8,9 @@ HORIZONTAL_LINE = "─"
 VERTICAL_LINE = "│"
 
 
-def draw_panel(stdscr: curses.window, title: str, data: dict, y: int, x: int, w: int, h: int):
+def draw_panel(
+    stdscr: curses.window, title: str, data: dict, y: int, x: int, w: int, h: int
+):
     """Draw a panel with a title and data in a box"""
     panel_area = curses.newwin(h, w, y, x)
     panel_area.box()
@@ -43,7 +45,7 @@ def draw_panel(stdscr: curses.window, title: str, data: dict, y: int, x: int, w:
                 add_per_col = diff // len(col_widths)
                 for i in range(len(col_widths)):
                     col_widths[i] += add_per_col
-                    
+
             for line in value:
                 if row >= text_area_height:
                     break

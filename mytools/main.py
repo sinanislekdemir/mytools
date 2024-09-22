@@ -62,7 +62,9 @@ def main_loop(stdscr: curses.window):
             helpwin.addstr(9, 14, "C: Clean past data", curses.color_pair(1))
             helpwin.addstr(10, 14, "H: Hide HTTP", curses.color_pair(1))
             helpwin.addstr(11, 14, "R: Refresh", curses.color_pair(1))
-            helpwin.addstr(13, 2, "You can edit ~/.news_sources.txt", curses.color_pair(1))
+            helpwin.addstr(
+                13, 2, "You can edit ~/.news_sources.txt", curses.color_pair(1)
+            )
             helpwin.addstr(14, 2, "to add your own news sources", curses.color_pair(1))
 
             helpwin.addnstr(15, 14, "sinan@islekdemir.com", 20, curses.color_pair(3))
@@ -100,7 +102,7 @@ def main_loop(stdscr: curses.window):
             network_color = 6
         stdscr.addstr(0, 26, " [F4] Network ", curses.color_pair(network_color))
 
-        stdscr.addstr(0, width-14, " [F1/?] Help ", curses.color_pair(1))
+        stdscr.addstr(0, width - 14, " [F1/?] Help ", curses.color_pair(1))
 
         if mode == "system":
             if key == ord("h"):
@@ -128,6 +130,7 @@ def main_loop(stdscr: curses.window):
 
 def main():
     curses.wrapper(main_loop)
+
 
 if __name__ == "__main__":
     main()

@@ -14,11 +14,12 @@ sources = [
     "https://lobste.rs/rss",
 ]
 
+
 def load_sources():
     global sources
     sources_file = "news_sources.txt"
     home_sources_file = os.path.expanduser("~/.news_sources.txt")
-    
+
     if os.path.exists(sources_file):
         with open(sources_file, "r") as f:
             sources = f.readlines()
@@ -27,6 +28,7 @@ def load_sources():
             sources = f.readlines()
     else:
         print("No sources file found. Using default sources.")
+
 
 news_cache = {}
 source_index = 0

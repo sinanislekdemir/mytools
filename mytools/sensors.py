@@ -41,7 +41,7 @@ def get_nvidia_smi(width: int) -> dict:
     result = os.popen(command).read().split("\n")
     if len(result) < 2:
         return {"Error": "NVIDIA SMI not found".ljust(width, " ")}
-    
+
     return {
         "GPU temp": f"{result[1].split(', ')[0]}°C".ljust(width, " "),
         "GPU utilization": f"{result[1].split(', ')[1]}".ljust(width, " "),
