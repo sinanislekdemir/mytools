@@ -33,6 +33,19 @@ def clean_past_data():
             del past_data[key]
 
 
+def dump_past_data():
+    """Dump past data to a CSV file"""
+    with open(f"network_{int(time.time())}.csv", "w") as f:
+        f.write(
+            "State,Recv-Q,Send-Q,Local Address,Peer Address,Process,Reverse NS,Time\n"
+        )
+        for key, value in past_data.items():
+            cpy = value.copy()
+            cpy[5] = cpy[5].replace(",", " ")
+            row = f"{','.join(cpy[:7])}"
+            f.write(row + "\n")
+
+
 def toggle_hide_http():
     global hide_http
     hide_http = not hide_http

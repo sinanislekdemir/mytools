@@ -1,7 +1,12 @@
 import curses
 import time
 
-from mytools.netwatch import clean_past_data, network_loop, toggle_hide_http
+from mytools.netwatch import (
+    clean_past_data,
+    dump_past_data,
+    network_loop,
+    toggle_hide_http,
+)
 from mytools.news import news_loop
 from mytools.sensors import switch_combined, switch_hide_command, system_loop
 
@@ -62,6 +67,7 @@ def main_loop(stdscr: curses.window):
             helpwin.addstr(9, 14, "C: Clean past data", curses.color_pair(1))
             helpwin.addstr(10, 14, "H: Hide HTTP", curses.color_pair(1))
             helpwin.addstr(11, 14, "R: Refresh", curses.color_pair(1))
+            helpwin.addstr(12, 14, "D: Dump past data", curses.color_pair(1))
             helpwin.addstr(
                 13, 2, "You can edit ~/.news_sources.txt", curses.color_pair(1)
             )
@@ -119,6 +125,8 @@ def main_loop(stdscr: curses.window):
             if key == ord("h"):
                 toggle_hide_http()
                 network_loop(stdscr)
+            if key == ord("d"):
+                dump_past_data()
             network_loop(stdscr)
             stdscr.refresh()
             time.sleep(1)
