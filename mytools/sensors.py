@@ -336,7 +336,7 @@ def system_loop(stdscr: curses.window):
         11,
         0,
         gpu_width + 2,
-        cpu_area_height - thermal_area_height - 1,
+        height - thermal_area_height - 11,
     )
     draw_panel(
         stdscr,
