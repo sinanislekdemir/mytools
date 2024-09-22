@@ -39,7 +39,7 @@ def main_loop(stdscr: curses.window):
         if key == ord("q"):
             break
 
-        if key == curses.KEY_F1:
+        if key == curses.KEY_F1 or key == ord("?"):
             helpwin = curses.newwin(17, 50, 5, 5)
             helpwin.box()
             helpwin.addstr(1, 2, "Help", curses.color_pair(1))
@@ -100,7 +100,7 @@ def main_loop(stdscr: curses.window):
             network_color = 6
         stdscr.addstr(0, 26, " [F4] Network ", curses.color_pair(network_color))
 
-        stdscr.addstr(0, width-14, " [F1] Help ", curses.color_pair(1))
+        stdscr.addstr(0, width-14, " [F1/?] Help ", curses.color_pair(1))
 
         if mode == "system":
             if key == ord("h"):
