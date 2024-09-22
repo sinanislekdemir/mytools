@@ -37,8 +37,11 @@ def bytes_to_human_readable(bytes: int) -> str:
 
 def get_nvidia_smi(width: int) -> dict:
     """Run nvidia-smi and get params."""
-    command = "nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,utilization.memory,temperature.memory,memory.total,memory.free,memory.used --format=csv"
+    command = "nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,utilization.memory,temperature.memory,memory.total,memory.free,memory.used --format=csv 2>/dev/null"
     result = os.popen(command).read().split("\n")
+    if len(result) < 2:
+        return {"Error": "NVIDIA SMI not found".ljust(width, " ")}
+    
     return {
         "GPU temp": f"{result[1].split(', ')[0]}°C".ljust(width, " "),
         "GPU utilization": f"{result[1].split(', ')[1]}".ljust(width, " "),
@@ -102,11 +105,11 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
                     pre = "YELLOW!"
             processes.append(
                 [
-                    line_parts[1],
+                    pre + line_parts[1],
                     line_parts[0],
                     line_parts[3],
                     line_parts[2],
-                    pre + " ".join(line_parts[10:]),
+                    " ".join(line_parts[10:]),
                     bytes_to_human_readable(int(line_parts[5])),
                     bytes_to_human_readable(int(line_parts[4])),
                 ]
@@ -126,39 +129,39 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
                 cmdmap[cmd] = [
                     line_parts[1],
                     line_parts[0],
-                    line_parts[3],
-                    line_parts[2],
+                    0,
+                    0,
                     line_parts[10],
-                    line_parts[5],
-                    line_parts[4],
+                    0,
+                    0,
                 ]
+
+            mem = float(cmdmap[cmd][2]) + float(line_parts[3])
+            cpu = float(cmdmap[cmd][3]) + float(line_parts[2])
+            mem_str = f"{mem:.2f}"
+            cpu_str = f"{cpu:.2f}"
+            pre = ""
+            if sort == "-rss":
+                if mem > 50:
+                    pre = "RED!"
+                elif mem > 20:
+                    pre = "YELLOW!"
             else:
-                mem = float(cmdmap[cmd][2]) + float(line_parts[3])
-                cpu = float(cmdmap[cmd][3]) + float(line_parts[2])
-                mem_str = f"{mem:.2f}"
-                cpu_str = f"{cpu:.2f}"
-                pre = ""
-                if sort == "-rss":
-                    if mem > 50:
-                        pre = "RED!"
-                    elif mem > 20:
-                        pre = "YELLOW!"
-                else:
-                    if cpu > 50:
-                        pre = "RED!"
-                    elif cpu > 20:
-                        pre = "YELLOW!"
-                cmdmap[cmd][2] = mem_str
-                cmdmap[cmd][3] = cpu_str
-                cmdmap[cmd][5] = str(int(cmdmap[cmd][5]) + int(line_parts[5]))
-                cmdmap[cmd][6] = str(int(cmdmap[cmd][6]) + int(line_parts[4]))
-                cmdmap[cmd][4] = pre + line_parts[10]
+                if cpu > 50:
+                    pre = "RED!"
+                elif cpu > 20:
+                    pre = "YELLOW!"
+            cmdmap[cmd][2] = mem_str
+            cmdmap[cmd][3] = cpu_str
+            cmdmap[cmd][5] = str(int(cmdmap[cmd][5]) + int(line_parts[5]))
+            cmdmap[cmd][6] = str(int(cmdmap[cmd][6]) + int(line_parts[4]))
+            cmdmap[cmd][0] = pre + line_parts[1]
         procs = [
             [
                 cmdmap[cmd][0],
                 cmdmap[cmd][1],
-                cmdmap[cmd][3],
                 cmdmap[cmd][2],
+                cmdmap[cmd][3],
                 cmdmap[cmd][4],
                 bytes_to_human_readable(int(cmdmap[cmd][5])),
                 bytes_to_human_readable(int(cmdmap[cmd][6])),

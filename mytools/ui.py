@@ -38,6 +38,12 @@ def draw_panel(stdscr: curses.window, title: str, data: dict, y: int, x: int, w:
             for i in range(len(value[0])):
                 col_widths.append(max(len(value[j][i]) for j in range(len(value))))
 
+            if sum(col_widths) < text_area_width:
+                diff = text_area_width - sum(col_widths)
+                add_per_col = diff // len(col_widths)
+                for i in range(len(col_widths)):
+                    col_widths[i] += add_per_col
+                    
             for line in value:
                 if row >= text_area_height:
                     break
