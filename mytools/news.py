@@ -77,47 +77,45 @@ def news_loop(stdscr: curses.window, key: int):
     global news
     load_sources()
 
-    def print_loading(win: curses.window):
-        win.clear()
-        print_border(win)
-        win.addstr(1, 2, "Loading news...", curses.color_pair(1))
-        win.refresh()
-
-    def print_border(win: curses.window):
-        win.box()
-        win.refresh()
-        win.keypad(True)
-        win.nodelay(True)
-        win.scrollok(True)
-        win.timeout(1000)
-        win.addstr(0, 2, "[", curses.color_pair(0))
-        win.addstr(0, 3, f"News {sources[source_index]}", curses.color_pair(6))
-        win.addstr(0, len(sources[source_index]) + 8, "]", curses.color_pair(0))
-        win.refresh()
-
     height, width = stdscr.getmaxyx()
-    news_area_height = height - 1
+    news_area_height = height
     news_area_width = width
     news_area_x = 0
     news_area_y = 1
+
     news_area = curses.newwin(
         news_area_height, news_area_width, news_area_y, news_area_x
     )
-    print_border(news_area)
+
+    def print_loading():
+        news_area.addstr(1, 0, "Loading news...", curses.color_pair(1))
+        news_area.refresh()
+
+    def print_border():
+        title = sources[source_index]
+        news_area.clear()
+        news_area.addstr(
+            news_area_height - 2,
+            0,
+            title,
+            curses.A_BOLD,
+        )
+
+    print_border()
 
     if news is None:
-        print_loading(news_area)
+        print_loading()
         news = get_news(source_index)
 
     if key == 9:
         source_index = (source_index + 1) % len(sources)
-        print_border(news_area)
-        print_loading(news_area)
+        print_border()
+        print_loading()
         news = get_news(source_index)
         news_index = 0
 
     if key == ord("r"):
-        print_loading(news_area)
+        print_loading()
         news = get_news(source_index)
         news_index = 0
 
@@ -133,15 +131,15 @@ def news_loop(stdscr: curses.window, key: int):
 
     if key == curses.KEY_LEFT:
         source_index = (source_index - 1) % len(sources)
-        print_border(news_area)
-        print_loading(news_area)
+        print_border()
+        print_loading()
         news = get_news(source_index)
         news_index = 0
 
     if key == curses.KEY_RIGHT:
         source_index = (source_index + 1) % len(sources)
-        print_border(news_area)
-        print_loading(news_area)
+        print_border()
+        print_loading()
         news = get_news(source_index)
         news_index = 0
 
@@ -158,11 +156,9 @@ def news_loop(stdscr: curses.window, key: int):
     for i, line in enumerate(news):
         line = wrap_text(line, news_area_width - 3)[0]
         if i == news_index:
-            news_area.addstr(
-                i + 1, 2, line.ljust(news_area_width - 3), curses.color_pair(5)
-            )
+            news_area.addstr(i, 0, line.ljust(news_area_width), curses.color_pair(5))
         else:
-            news_area.addstr(i + 1, 2, line)
+            news_area.addstr(i, 0, line)
         if i == news_area_height - 3:
             break
 

@@ -175,6 +175,7 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
         else:
             procs.sort(key=lambda x: float(x[2]), reverse=True)
         processes.extend(procs)
+
     if hide_command:
         for proc in processes[1:]:
             proc[4] = ""
@@ -341,7 +342,7 @@ def system_loop(stdscr: curses.window):
     draw_panel(
         stdscr,
         "Memory",
-        get_total_and_free_memory(cpu_area_height // 2 - 2),
+        get_total_and_free_memory(cpu_area_height // 2),
         1,
         gpu_width + 2,
         memory_width,
@@ -350,11 +351,11 @@ def system_loop(stdscr: curses.window):
     draw_panel(
         stdscr,
         "CPU",
-        get_processes_cpu(cpu_area_height // 2 - 2),
+        get_processes_cpu(cpu_area_height // 2),
         cpu_area_height // 2 + 1,
         gpu_width + 2,
         memory_width,
-        cpu_area_height // 2 + 1,
+        cpu_area_height // 2,
     )
     if thermal_area_height > 2:
         draw_panel(

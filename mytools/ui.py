@@ -13,14 +13,16 @@ def draw_panel(
 ):
     """Draw a panel with a title and data in a box"""
     panel_area = curses.newwin(h, w, y, x)
-    panel_area.box()
+
     panel_area.keypad(True)
     panel_area.nodelay(True)
     panel_area.scrollok(True)
     panel_area.timeout(1000)
-    panel_area.addstr(0, 2, f"[{title}]", curses.color_pair(8))
+    panel_area.addstr(
+        0, 0, f"[{title}]".ljust(w), curses.A_BOLD | curses.color_pair(10)
+    )
 
-    text_area_height = h - 2
+    text_area_height = h
     text_area_width = w - 2
     # Fit data to text area
     row = 1
@@ -28,7 +30,7 @@ def draw_panel(
         if row >= text_area_height:
             break
         if isinstance(value, list):
-            panel_area.addstr(row, 1, f"{key}:", curses.color_pair(2))
+            panel_area.addstr(row, 0, f"{key}:", curses.color_pair(2))
 
             row += 1
 
@@ -65,7 +67,7 @@ def draw_panel(
                 if len(str_to_print) > text_area_width:
                     str_to_print = str_to_print[: text_area_width - 3] + "..."
 
-                panel_area.addstr(row, 1, str_to_print, curses.color_pair(color))
+                panel_area.addstr(row, 0, str_to_print, curses.color_pair(color))
                 row += 1
             continue
 
@@ -81,7 +83,7 @@ def draw_panel(
         if len(str_to_print) > text_area_width:
             str_to_print = str_to_print[: text_area_width - 3] + "..."
 
-        panel_area.addstr(row, 1, key + ":", curses.color_pair(9))
+        panel_area.addstr(row, 0, key + ":", curses.color_pair(9))
         panel_area.addstr(
             row, len(key) + 3, str_to_print[len(key) + 2 :], curses.color_pair(color)
         )

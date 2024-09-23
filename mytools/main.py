@@ -2,9 +2,13 @@ import curses
 import time
 from threading import Thread
 
-from mytools.netwatch import (clean_past_data, dump_past_data,
-                              get_ss_tnp_output, network_loop,
-                              toggle_hide_http)
+from mytools.netwatch import (
+    clean_past_data,
+    dump_past_data,
+    get_ss_tnp_output,
+    network_loop,
+    toggle_hide_http,
+)
 from mytools.news import news_loop
 from mytools.sensors import switch_combined, switch_hide_command, system_loop
 
@@ -30,6 +34,7 @@ def main_loop(stdscr: curses.window):
     curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_RED)
     curses.init_pair(8, curses.COLOR_BLACK, curses.COLOR_GREEN)
     curses.init_pair(9, curses.COLOR_CYAN, curses.COLOR_BLACK)
+    curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
     last_size = (0, 0)
 
@@ -98,20 +103,34 @@ def main_loop(stdscr: curses.window):
             stdscr.clear()
             stdscr.refresh()
 
-        sensors_color = 1
+        sensors_color = 10
+
+        stdscr.addstr(0, 0, (" " * width), curses.color_pair(10))
         if mode == "system":
             sensors_color = 6
-        stdscr.addstr(0, 0, " [F2] Sensors ", curses.color_pair(sensors_color))
-        news_color = 1
+
+        stdscr.addstr(
+            0, 0, "[F2] Sensors ", curses.A_BOLD | curses.color_pair(sensors_color)
+        )
+        stdscr.addstr(0, 13, "|", curses.color_pair(10))
+        news_color = 10
         if mode == "news":
             news_color = 6
-        stdscr.addstr(0, 14, " [F3] News ", curses.color_pair(news_color))
-        network_color = 1
+
+        stdscr.addstr(
+            0, 14, " [F3] News  ", curses.A_BOLD | curses.color_pair(news_color)
+        )
+        stdscr.addstr(0, 26, "|", curses.color_pair(10))
+        network_color = 10
         if mode == "network":
             network_color = 6
-        stdscr.addstr(0, 26, " [F4] Network ", curses.color_pair(network_color))
 
-        stdscr.addstr(0, width - 14, " [F1/?] Help ", curses.color_pair(1))
+        stdscr.addstr(
+            0, 28, " [F4] Network ", curses.A_BOLD | curses.color_pair(network_color)
+        )
+        stdscr.addstr(0, 42, "|", curses.color_pair(10))
+
+        stdscr.addstr(0, width - 14, " [F1/?] Help ", curses.color_pair(10))
 
         if mode == "system":
             if key == ord("h"):

@@ -30,19 +30,17 @@ def time_to_str(seconds):
 def clean_past_data():
     global past_data
     for key in list(past_data.keys()):
-        if not past_data[key][8]:
+        if not past_data[key][6]:
             del past_data[key]
 
 
 def dump_past_data():
     """Dump past data to a CSV file"""
     with open(f"network_{int(time.time())}.csv", "w") as f:
-        f.write(
-            "State,Recv-Q,Send-Q,Local Address,Peer Address,Process,Reverse NS,Time\n"
-        )
+        f.write("State,Local Address,Peer Address,Process,Reverse NS,Time\n")
         for key, value in past_data.items():
             cpy = value.copy()
-            cpy[5] = cpy[5].replace(",", " ")
+            cpy[3] = cpy[3].replace(",", " ")
             row = f"{','.join(cpy[:7])}"
             f.write(row + "\n")
 
@@ -62,8 +60,6 @@ def get_ss_tnp_output():
     lines = result.stdout.decode("utf-8").split("\n")
     nlist = [
         "State",
-        "Recv-Q",
-        "Send-Q",
         "Local Address",
         "Peer Address",
         "Process",
@@ -75,6 +71,7 @@ def get_ss_tnp_output():
     for line in lines:
         if not line:
             continue
+
         parts = line.split()
         parts = [part.strip() for part in parts]
         if len(parts) < 6:
@@ -82,12 +79,11 @@ def get_ss_tnp_output():
             parts.extend([""] * (6 - len(parts)))
 
         key = f"{parts[3]}{parts[4]}{parts[5]}"
+
         nlist_raw.append(key)
         if key not in past_data:
             past_data[key] = [
                 parts[0],
-                parts[1],
-                parts[2],
                 parts[3],
                 parts[4],
                 parts[5],
@@ -98,33 +94,31 @@ def get_ss_tnp_output():
 
     for key in past_data:
         if key not in nlist_raw:
-            if past_data[key][8]:
-                past_data[key][8] = False
+            if past_data[key][6]:
+                past_data[key][6] = False
                 past_data[key][0] = past_data[key][0]
-                past_data[key][7] = time.monotonic() - past_data[key][7]
+                past_data[key][5] = time.monotonic() - past_data[key][5]
 
     print_list = []
 
     for key, value in past_data.items():
-        if hide_http and value[4].split(":")[1] in ["80", "443"]:
+        if hide_http and value[2].split(":")[1] in ["80", "443"]:
             continue
-        if not value[8]:
+        if not value[6]:
             print_list.append(
                 [
                     "RED!" + value[0],
-                    "",
-                    "",
+                    value[1],
+                    value[2],
                     value[3],
                     value[4],
-                    value[5],
-                    value[6],
-                    time_to_str(value[7]),
+                    time_to_str(value[5]),
                 ]
             )
         else:
             now = time.monotonic()
             pre = ""
-            if now - value[7] < 30:
+            if now - value[5] < 30:
                 pre = "GREEN!"
             print_list.append(
                 [
@@ -133,14 +127,12 @@ def get_ss_tnp_output():
                     value[2],
                     value[3],
                     value[4],
-                    value[5],
-                    value[6],
-                    time_to_str(now - value[7]),
+                    time_to_str(now - value[5]),
                 ]
             )
 
     # Move active to top and sort by time
-    print_list.sort(key=lambda x: (x[0].startswith("RED!"), x[7]))
+    print_list.sort(key=lambda x: (x[0].startswith("RED!"), x[5]))
     print_list.insert(0, nlist)
 
     result_dict = {"Network": print_list}
