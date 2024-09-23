@@ -1,17 +1,19 @@
 import curses
 import time
+from threading import Thread
 
-from mytools.netwatch import (
-    clean_past_data,
-    dump_past_data,
-    network_loop,
-    toggle_hide_http,
-)
+from mytools.netwatch import (clean_past_data, dump_past_data,
+                              get_ss_tnp_output, network_loop,
+                              toggle_hide_http)
 from mytools.news import news_loop
 from mytools.sensors import switch_combined, switch_hide_command, system_loop
 
+running = False
+
 
 def main_loop(stdscr: curses.window):
+    global running
+
     stdscr.clear()
     stdscr.refresh()
     curses.curs_set(0)
@@ -42,6 +44,7 @@ def main_loop(stdscr: curses.window):
 
         key = stdscr.getch()
         if key == ord("q"):
+            running = False
             break
 
         if key == curses.KEY_F1 or key == ord("?"):
@@ -136,9 +139,20 @@ def main_loop(stdscr: curses.window):
             stdscr.refresh()
 
 
+def network_listener():
+    while running:
+        get_ss_tnp_output()
+        time.sleep(0.5)
+
+
 def main():
+    global running
+    running = True
+    t = Thread(target=network_listener)
+    t.start()
     curses.wrapper(main_loop)
 
 
 if __name__ == "__main__":
+    """Start network listener thread."""
     main()

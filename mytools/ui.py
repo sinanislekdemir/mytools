@@ -52,7 +52,7 @@ def draw_panel(
                 color = 1
                 for i in range(len(line)):
                     if line[i].startswith("GREEN!"):
-                        color = 3
+                        color = 8
                         line[i] = line[i][6:]
                     if line[i].startswith("RED!"):
                         color = 7

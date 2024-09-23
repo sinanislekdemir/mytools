@@ -8,6 +8,7 @@ from mytools.ui import draw_panel
 
 past_data = {}
 hide_http = False
+network_list = {}
 
 
 @lru_cache
@@ -51,25 +52,25 @@ def toggle_hide_http():
     hide_http = not hide_http
 
 
-def get_ss_tnp_output(max_items: int) -> dict:
+def get_ss_tnp_output():
     global past_data
+    global network_list
+
     result = subprocess.run(
         ["ss", "-tnpH"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     lines = result.stdout.decode("utf-8").split("\n")
-    nlist = []
-    nlist.append(
-        [
-            "State",
-            "Recv-Q",
-            "Send-Q",
-            "Local Address",
-            "Peer Address",
-            "Process",
-            "Reverse NS",
-            "Time",
-        ]
-    )
+    nlist = [
+        "State",
+        "Recv-Q",
+        "Send-Q",
+        "Local Address",
+        "Peer Address",
+        "Process",
+        "Reverse NS",
+        "Time",
+    ]
+
     nlist_raw = []
     for line in lines:
         if not line:
@@ -103,7 +104,6 @@ def get_ss_tnp_output(max_items: int) -> dict:
                 past_data[key][7] = time.monotonic() - past_data[key][7]
 
     print_list = []
-    print_list.extend(nlist)
 
     for key, value in past_data.items():
         if hide_http and value[4].split(":")[1] in ["80", "443"]:
@@ -123,9 +123,12 @@ def get_ss_tnp_output(max_items: int) -> dict:
             )
         else:
             now = time.monotonic()
+            pre = ""
+            if now - value[7] < 30:
+                pre = "GREEN!"
             print_list.append(
                 [
-                    value[0],
+                    pre + value[0],
                     value[1],
                     value[2],
                     value[3],
@@ -136,13 +139,20 @@ def get_ss_tnp_output(max_items: int) -> dict:
                 ]
             )
 
-    result_dict = {"Network": print_list[:max_items]}
+    # Move active to top and sort by time
+    print_list.sort(key=lambda x: (x[0].startswith("RED!"), x[7]))
+    print_list.insert(0, nlist)
 
-    return result_dict
+    result_dict = {"Network": print_list}
+    network_list = result_dict
 
 
 def network_loop(stdscr: curses.window):
     height, width = stdscr.getmaxyx()
     height -= 1
     items = height - 2
-    draw_panel(stdscr, "Network", get_ss_tnp_output(items), 1, 0, width, height)
+    print_dict = {}
+    if "Network" in network_list:
+        print_dict["Network"] = network_list["Network"][:items]
+
+    draw_panel(stdscr, "Network", print_dict, 1, 0, width, height)
