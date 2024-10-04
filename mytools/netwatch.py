@@ -41,7 +41,7 @@ def dump_past_data():
         for key, value in past_data.items():
             cpy = value.copy()
             cpy[3] = cpy[3].replace(",", " ")
-            row = f"{','.join(cpy[:7])}"
+            row = f"{','.join(cpy[:5])}"
             f.write(row + "\n")
 
 

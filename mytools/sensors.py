@@ -318,7 +318,7 @@ def system_loop(stdscr: curses.window):
     height, width = stdscr.getmaxyx()
     thermal_area_height = len(get_thermal_zones()) + 2
     cpu_area_height = height - thermal_area_height - 1
-    gpu_width = min(width // 2 - 5, 50)
+    gpu_width = min(width // 2 - 5, 35)
     memory_width = width - gpu_width - 2
     # Draw a panel to the first quarter of the screen
     draw_panel(

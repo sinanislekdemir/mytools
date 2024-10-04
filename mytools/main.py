@@ -2,13 +2,9 @@ import curses
 import time
 from threading import Thread
 
-from mytools.netwatch import (
-    clean_past_data,
-    dump_past_data,
-    get_ss_tnp_output,
-    network_loop,
-    toggle_hide_http,
-)
+from mytools.netwatch import (clean_past_data, dump_past_data,
+                              get_ss_tnp_output, network_loop,
+                              toggle_hide_http)
 from mytools.news import news_loop
 from mytools.sensors import switch_combined, switch_hide_command, system_loop
 
@@ -160,8 +156,12 @@ def main_loop(stdscr: curses.window):
 
 def network_listener():
     while running:
-        get_ss_tnp_output()
-        time.sleep(0.5)
+        try:
+            get_ss_tnp_output()
+            time.sleep(0.5)
+        except Exception as e:
+            with open("err.log", "a+") as f:
+                f.write(f"{time.ctime()} {e}\n")
 
 
 def main():

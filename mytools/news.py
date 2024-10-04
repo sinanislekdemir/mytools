@@ -2,6 +2,7 @@ import curses
 import os
 
 import feedparser  # type: ignore
+import lxml
 from bs4 import BeautifulSoup
 
 sources = [
@@ -43,8 +44,10 @@ def get_news(index: int) -> list:
     for entry in feed.entries:
         title = f"[{entry.published_parsed.tm_mday}.{entry.published_parsed.tm_mon}.{entry.published_parsed.tm_year} {entry.published_parsed.tm_hour}:{entry.published_parsed.tm_min}] {entry.title}"
         news.append(title)
-        soup = BeautifulSoup(entry.summary, "html.parser")
-        summary_text = soup.get_text()
+        soup = BeautifulSoup(entry.summary, "lxml")
+        texts = soup.findAll(text=True)
+
+        summary_text = "".join(texts)
         news_cache[title] = {
             "link": entry.link,
             "summary": summary_text,
@@ -173,15 +176,23 @@ def news_loop(stdscr: curses.window, key: int):
         try:
             news_text = news_cache[news[news_index]]["summary"]
             news_width = width - 22
-            news_window = curses.newwin(height - 20, width - 20, 10, 10)
+            new_win_height = height - 20
+            new_win_width = width - 20
+
+            news_window = curses.newwin(new_win_height, new_win_width, 10, 10)
             news_window.clear()
             news_window.box()
 
+            text_box = news_window.subwin(new_win_height - 4, new_win_width - 4, 12, 12)
+            text_box.clear()
+
             news_window.addstr(0, 2, news[news_index], curses.color_pair(2))
-            for i, line in enumerate(wrap_text(news_text, news_width)):
-                news_window.addstr(2 + i, 2, line)
+            for i, line in enumerate(wrap_text(news_text, news_width - 8)):
+                text_box.addstr(i, 1, line)
                 if i == height - 22:
                     break
+
+            text_box.refresh()
             news_window.refresh()
         except Exception as e:
             news_area.addstr(1, 2, f"Error: {e}")
