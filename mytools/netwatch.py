@@ -16,7 +16,7 @@ def reverse_nslookup(ip):
     try:
         host, _, _ = socket.gethostbyaddr(ip)
         return host
-    except socket.herror:
+    except Exception:
         return ip
 
 

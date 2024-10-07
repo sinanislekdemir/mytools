@@ -160,7 +160,7 @@ def network_listener():
             get_ss_tnp_output()
             time.sleep(0.5)
         except Exception as e:
-            with open("err.log", "a+") as f:
+            with open("/tmp/err.log", "a+") as f:
                 f.write(f"{time.ctime()} {e}\n")
 
 

@@ -321,23 +321,27 @@ def system_loop(stdscr: curses.window):
     gpu_width = min(width // 2 - 5, 35)
     memory_width = width - gpu_width - 2
     # Draw a panel to the first quarter of the screen
-    draw_panel(
-        stdscr,
-        "GPU",
-        get_nvidia_smi(gpu_width),
-        1,
-        0,
-        gpu_width + 2,
-        10,
-    )
+    smi_data = get_nvidia_smi(gpu_width)
+    cpu_y = 1
+    if "Error" not in smi_data:
+        cpu_y = 11
+        draw_panel(
+            stdscr,
+            "GPU",
+            smi_data,
+            1,
+            0,
+            gpu_width + 2,
+            10,
+        )
     draw_panel(
         stdscr,
         "CPU Usage",
         get_cpu_count_and_usage_per_core(),
-        11,
+        cpu_y,
         0,
         gpu_width + 2,
-        height - thermal_area_height - 11,
+        height - thermal_area_height - cpu_y,
     )
     draw_panel(
         stdscr,
