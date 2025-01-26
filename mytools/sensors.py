@@ -184,26 +184,30 @@ def get_top_n_processes(n: int, sort="-rss") -> list[list]:
 
 def get_total_and_free_memory(num_lines: int) -> dict:
     mem_total = 0
-    mem_free = 0
     mem_available = 0
+    swap_total = 0
+    swap_free = 0
     with open("/proc/meminfo", "r") as file:
         for line in file:
             key, value = line.split(":", 1)
             key = key.strip()
             value = value.strip()
-            kb_value = int(value.split(" ")[0])
+            byte_value = int(value.split(" ")[0]) * 1024
             if key == "MemTotal":
-                mem_total = kb_value
-            if key == "MemFree":
-                mem_free = kb_value
+                mem_total = bytes_to_human_readable(byte_value)
             if key == "MemAvailable":
-                mem_available = kb_value
+                mem_available = bytes_to_human_readable(byte_value)
+            if key == "SwapTotal":
+                swap_total = bytes_to_human_readable(byte_value)
+            if key == "SwapFree":
+                swap_free = bytes_to_human_readable(byte_value)
 
     procs = get_top_n_processes(num_lines - 3)
+    ram = f"Available {mem_available} Total: {mem_total}"
+    swap = f"Available {swap_free} Total: {swap_total}"
     result = {
-        "Total": mem_total,
-        "Free": mem_free,
-        "Available": mem_available,
+        "Ram ": ram,
+        "Swap": swap,
         "Top processes": procs,
     }
     return result
