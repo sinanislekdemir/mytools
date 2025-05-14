@@ -3,6 +3,7 @@ import os
 
 import feedparser  # type: ignore
 import lxml
+import requests
 from bs4 import BeautifulSoup
 
 sources = [
@@ -14,6 +15,22 @@ sources = [
     "https://www.bleepingcomputer.com/feed/",
     "https://lobste.rs/rss",
 ]
+
+ACCEPT_HEADER: str = (
+    "application/atom+xml"
+    ",application/rdf+xml"
+    ",application/rss+xml"
+    ",application/x-netcdf"
+    ",application/xml"
+    ";q=0.9,text/xml"
+    ";q=0.2,*/*"
+    ";q=0.1"
+)
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+    "Accept": ACCEPT_HEADER,
+}
 
 
 def load_sources():
@@ -39,13 +56,22 @@ news = None
 
 def get_news(index: int) -> list:
     global news_cache
-    feed = feedparser.parse(sources[index])
+    content = requests.get(sources[index].strip(), headers=headers)
+    if content.status_code >= 400:
+        return [
+            f"{content.status_code}: Unable to get news from {sources[index]}",
+            f"{content.content}",
+        ]
+    feed = feedparser.parse(content.content)
     news = []
     for entry in feed.entries:
         title = f"[{entry.published_parsed.tm_mday}.{entry.published_parsed.tm_mon}.{entry.published_parsed.tm_year} {entry.published_parsed.tm_hour}:{entry.published_parsed.tm_min}] {entry.title}"
         news.append(title)
-        soup = BeautifulSoup(entry.summary, "lxml")
-        texts = soup.findAll(text=True)
+        try:
+            soup = BeautifulSoup(entry.summary, "lxml")
+            texts = soup.findAll(text=True)
+        except Exception as e:
+            texts = [title, entry.get("title_detail", {}).get("value")]
 
         summary_text = "".join(texts)
         news_cache[title] = {
