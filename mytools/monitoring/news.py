@@ -2,7 +2,6 @@ import curses
 import os
 
 import feedparser  # type: ignore
-import lxml
 import requests
 from bs4 import BeautifulSoup
 
@@ -70,7 +69,7 @@ def get_news(index: int) -> list:
         try:
             soup = BeautifulSoup(entry.summary, "lxml")
             texts = soup.findAll(text=True)
-        except Exception as e:
+        except Exception:
             texts = [title, entry.get("title_detail", {}).get("value")]
 
         summary_text = "".join(texts)

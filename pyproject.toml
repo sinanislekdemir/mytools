@@ -1,17 +1,92 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mytools"
-version = "0.1.2"
-description = "My kind of tools"
+version = "0.2.1"
+description = "A comprehensive system monitoring and news reading tool with curses-based TUI"
 readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Sinan Islekdemir", email = "sinan@islekdemir.com"}
+]
+maintainers = [
+    {name = "Sinan Islekdemir", email = "sinan@islekdemir.com"}
+]
+keywords = ["monitoring", "system", "news", "tui", "curses", "terminal"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console :: Curses",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Networking :: Monitoring",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Terminals",
+]
 requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.12.3",
     "feedparser>=6.0.11",
     "lxml>=5.3.0",
-    "pyquery>=2.0.1",
     "requests>=2.32.3",
-    "types-beautifulsoup4>=4.12.0.20240907",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "types-beautifulsoup4>=4.12.0.20240907",
+    "types-requests>=2.31.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sinanislekdemir/mytools"
+Repository = "https://github.com/sinanislekdemir/mytools"
+Issues = "https://github.com/sinanislekdemir/mytools/issues"
 
 [project.scripts]
 mytools = "mytools.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mytools*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=mytools --cov-report=term-missing"

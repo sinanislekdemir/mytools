@@ -1,36 +1,109 @@
+"""Legacy main module - will be replaced by app.py"""
+
 import curses
 import time
 from threading import Thread
 
-from mytools.netwatch import (clean_past_data, dump_past_data,
-                              get_ss_tnp_output, network_loop,
-                              toggle_hide_http)
-from mytools.news import news_loop
-from mytools.sensors import switch_combined, switch_hide_command, system_loop
+from mytools.monitoring.netwatch import (
+    clean_past_data,
+    dump_past_data,
+    get_ss_tnp_output,
+    network_loop,
+    toggle_hide_http,
+)
+from mytools.monitoring.news_manager import NewsManager
+from mytools.monitoring.sensors import switch_combined, switch_hide_command, system_loop
+from mytools.core.themes import Theme, Layout
+from mytools.core.help_system import help_system
+from mytools.core.ui import draw_status_bar, draw_top_menu, draw_vertical_separator
+
+# Initialize news manager
+_news_manager = NewsManager()
 
 running = False
 
 
+class BackgroundMonitor:
+    """Background thread for system monitoring to keep UI responsive."""
+
+    def __init__(self):
+        self.running = False
+        self.thread = None
+        self.last_basic_update = 0
+        self.last_process_update = 0
+        self.basic_interval = 1.0  # GPU/CPU usage every second
+        self.process_interval = 1.0  # Process lists every second
+
+    def start(self):
+        """Start the background monitoring thread."""
+        self.running = True
+        self.thread = Thread(target=self._monitor_loop, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        """Stop the background monitoring thread."""
+        self.running = False
+        if self.thread:
+            self.thread.join()
+
+    def _monitor_loop(self):
+        """Background monitoring loop that updates sensor data at different frequencies."""
+        while self.running:
+            try:
+                current_time = time.time()
+
+                # Update basic monitors (GPU/CPU usage) every 2 seconds
+                if current_time - self.last_basic_update >= self.basic_interval:
+                    from mytools.monitoring.sensors import get_sensor_manager
+
+                    manager = get_sensor_manager()
+                    # Force refresh of basic monitoring data
+                    manager.gpu_monitor.get_nvidia_info(10)
+                    manager.cpu_monitor.get_cpu_usage_data()
+                    manager.memory_monitor.get_memory_info()
+                    manager.temperature_monitor.get_all_thermal_data()
+                    self.last_basic_update = current_time
+
+                # Update process lists every second for responsive scrolling
+                if current_time - self.last_process_update >= self.process_interval:
+                    from mytools.monitoring.sensors import get_sensor_manager
+
+                    manager = get_sensor_manager()
+                    # Force refresh of process data
+                    manager.process_monitor.get_processes(
+                        20, "-rss", manager.combined, manager.hide_command
+                    )
+                    manager.process_monitor.get_processes(
+                        20, "-%cpu", manager.combined, manager.hide_command
+                    )
+                    manager.gpu_monitor.get_gpu_processes(20)
+                    self.last_process_update = current_time
+
+                time.sleep(0.1)  # Small sleep to prevent excessive CPU usage
+            except Exception as e:
+                # Log error but continue monitoring
+                from mytools.core.logger import Logger
+
+                Logger.get_logger().error(f"Background monitor error: {e}")
+                time.sleep(0.5)
+
+
+# Global background monitor
+_background_monitor = BackgroundMonitor()
+
+
 def main_loop(stdscr: curses.window):
-    global running
+    global running, _background_monitor
 
     stdscr.clear()
     stdscr.refresh()
     curses.curs_set(0)
     stdscr.nodelay(True)
-    curses.start_color()
     curses.cbreak()
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
+    Theme.init_colors()
 
-    curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_CYAN)
-    curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_YELLOW)
-    curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_RED)
-    curses.init_pair(8, curses.COLOR_BLACK, curses.COLOR_GREEN)
-    curses.init_pair(9, curses.COLOR_CYAN, curses.COLOR_BLACK)
-    curses.init_pair(10, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    # Start background monitoring for responsive UI
+    _background_monitor.start()
 
     last_size = (0, 0)
 
@@ -46,40 +119,11 @@ def main_loop(stdscr: curses.window):
         key = stdscr.getch()
         if key == ord("q"):
             running = False
+            _background_monitor.stop()
             break
 
         if key == curses.KEY_F1 or key == ord("?"):
-            helpwin = curses.newwin(17, 50, 5, 5)
-            helpwin.box()
-            helpwin.addstr(1, 2, "Help", curses.color_pair(1))
-            helpwin.addstr(3, 2, "F1: Help", curses.color_pair(1))
-            helpwin.addstr(4, 2, "F2: Sensors", curses.color_pair(1))
-            helpwin.addstr(5, 2, "F3: News", curses.color_pair(1))
-            helpwin.addstr(6, 2, "F4: Network", curses.color_pair(1))
-            helpwin.addstr(7, 2, "Q: Quit", curses.color_pair(1))
-
-            helpwin.addstr(1, 14, "Sensor View:", curses.color_pair(2))
-            helpwin.addstr(2, 14, "C: Combined view", curses.color_pair(1))
-            helpwin.addstr(3, 14, "H: Hide command", curses.color_pair(1))
-
-            helpwin.addstr(4, 14, "News View:", curses.color_pair(2))
-            helpwin.addstr(5, 14, "Left/Right: Change source", curses.color_pair(1))
-            helpwin.addstr(6, 14, "Enter: Read news", curses.color_pair(1))
-            helpwin.addstr(7, 14, "O: Browse news", curses.color_pair(1))
-
-            helpwin.addstr(8, 14, "Network View:", curses.color_pair(2))
-            helpwin.addstr(9, 14, "C: Clean past data", curses.color_pair(1))
-            helpwin.addstr(10, 14, "H: Hide HTTP", curses.color_pair(1))
-            helpwin.addstr(11, 14, "R: Refresh", curses.color_pair(1))
-            helpwin.addstr(12, 14, "D: Dump past data", curses.color_pair(1))
-            helpwin.addstr(
-                13, 2, "You can edit ~/.news_sources.txt", curses.color_pair(1)
-            )
-            helpwin.addstr(14, 2, "to add your own news sources", curses.color_pair(1))
-
-            helpwin.addnstr(15, 14, "sinan@islekdemir.com", 20, curses.color_pair(3))
-            helpwin.refresh()
-            key = helpwin.getch()
+            help_system.show_help(stdscr)
 
         if key == curses.KEY_F2:
             mode = "system"
@@ -99,58 +143,131 @@ def main_loop(stdscr: curses.window):
             stdscr.clear()
             stdscr.refresh()
 
-        sensors_color = 10
-
-        stdscr.addstr(0, 0, (" " * width), curses.color_pair(10))
-        if mode == "system":
-            sensors_color = 6
-
-        stdscr.addstr(
-            0, 0, "[F2] Sensors ", curses.A_BOLD | curses.color_pair(sensors_color)
-        )
-        stdscr.addstr(0, 13, "|", curses.color_pair(10))
-        news_color = 10
-        if mode == "news":
-            news_color = 6
-
-        stdscr.addstr(
-            0, 14, " [F3] News  ", curses.A_BOLD | curses.color_pair(news_color)
-        )
-        stdscr.addstr(0, 26, "|", curses.color_pair(10))
-        network_color = 10
-        if mode == "network":
-            network_color = 6
-
-        stdscr.addstr(
-            0, 28, " [F4] Network ", curses.A_BOLD | curses.color_pair(network_color)
-        )
-        stdscr.addstr(0, 42, "|", curses.color_pair(10))
-
-        stdscr.addstr(0, width - 14, " [F1/?] Help ", curses.color_pair(10))
+        # Draw top menu first
+        draw_top_menu(stdscr, mode)
 
         if mode == "system":
+            # Handle navigation keys immediately for instant response
+            navigation_key_handled = False
+            if key == curses.KEY_UP:  # Arrow up for scrolling
+                from mytools.monitoring.sensors import get_sensor_manager
+
+                get_sensor_manager().scroll_active_panel(-1)
+                navigation_key_handled = True
+            elif key == curses.KEY_DOWN:  # Arrow down for scrolling
+                from mytools.monitoring.sensors import get_sensor_manager
+
+                get_sensor_manager().scroll_active_panel(1)
+                navigation_key_handled = True
+            elif key == 9:  # TAB key for panel navigation
+                from mytools.monitoring.sensors import get_sensor_manager
+
+                get_sensor_manager().cycle_active_panel()
+                navigation_key_handled = True
+
+            # Handle other keys
+            other_key_handled = False
             if key == ord("h"):
                 switch_hide_command()
-            if key == ord("c"):
+                other_key_handled = True
+            elif key == ord("c"):
                 switch_combined()
+                other_key_handled = True
+            elif key == ord("g") or key == ord("G"):  # G key for GPU/CPU toggle
+                from mytools.monitoring.sensors import get_sensor_manager
+
+                get_sensor_manager().toggle_gpu_processes()
+                other_key_handled = True
+
+            # Update display (background monitor provides updated data)
             system_loop(stdscr)
+
+            # Draw separator after all panels to prevent flickering
+            height, width = stdscr.getmaxyx()
+            from mytools.monitoring.sensors import get_sensor_manager
+
+            thermal_zones_count = len(
+                get_sensor_manager().temperature_monitor.get_thermal_zones()
+            )
+            panels = Layout.calculate_panel_dimensions(
+                height, width, thermal_zones_count
+            )
+            separator_x = panels["gpu"][
+                2
+            ]  # Right edge of left panels (now properly sized)
+            draw_vertical_separator(stdscr, separator_x, 1, height - 2)
+
+            # Draw status bar AFTER all panels to ensure it's not overwritten
+            current_time = time.strftime("%H:%M:%S")
+            draw_status_bar(stdscr, mode.capitalize(), current_time)
+
             stdscr.refresh()
-            time.sleep(1)
+
+            # Much faster response for navigation, moderate for others
+            if navigation_key_handled:
+                time.sleep(0.01)  # Almost instant for scrolling/navigation
+            elif other_key_handled:
+                time.sleep(0.05)  # Quick for other keys
+            else:
+                time.sleep(0.1)  # Faster regular refresh for smooth scrolling
 
         if mode == "network":
+            # Handle network navigation keys immediately for instant response
+            network_navigation_handled = False
+            if key == curses.KEY_UP:  # Arrow up for scrolling
+                from mytools.monitoring.netwatch import get_network_monitor
+
+                get_network_monitor().scroll_network(-1)
+                network_navigation_handled = True
+            elif key == curses.KEY_DOWN:  # Arrow down for scrolling
+                from mytools.monitoring.netwatch import get_network_monitor
+
+                get_network_monitor().scroll_network(1)
+                network_navigation_handled = True
+
+            # Handle other network keys
+            network_other_handled = False
             if key == ord("c"):
                 clean_past_data()
-            if key == ord("h"):
+                network_other_handled = True
+            elif key == ord("h"):
                 toggle_hide_http()
-                network_loop(stdscr)
-            if key == ord("d"):
+                network_other_handled = True
+            elif key == ord("d"):
                 dump_past_data()
+                network_other_handled = True
+            elif key == ord("e"):  # Edit excluded processes
+                from mytools.core.ui import show_excluded_processes_editor
+                from mytools.core.config import Config
+
+                current_excluded = Config.get_excluded_processes()
+                new_excluded = show_excluded_processes_editor(stdscr, current_excluded)
+                Config.set_excluded_processes(new_excluded)
+                network_other_handled = True
+
             network_loop(stdscr)
+
+            # Draw status bar AFTER all network panels
+            current_time = time.strftime("%H:%M:%S")
+            draw_status_bar(stdscr, mode.capitalize(), current_time)
+
             stdscr.refresh()
-            time.sleep(1)
+
+            # Responsive timing for network mode
+            if network_navigation_handled:
+                time.sleep(0.01)  # Almost instant for scrolling
+            elif network_other_handled:
+                time.sleep(0.05)  # Quick for other keys
+            else:
+                time.sleep(0.2)  # Regular refresh for network updates
 
         elif mode == "news":
-            news_loop(stdscr, key)
+            _news_manager.handle_input(stdscr, key)
+
+            # Draw status bar AFTER news content
+            current_time = time.strftime("%H:%M:%S")
+            draw_status_bar(stdscr, mode.capitalize(), current_time)
+
             stdscr.refresh()
 
 
