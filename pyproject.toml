@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mytools"
-version = "0.2.1"
+version = "0.2.3"
 description = "A comprehensive system monitoring and news reading tool with curses-based TUI"
 readme = "README.md"
 license = {file = "LICENSE"}

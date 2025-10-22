@@ -79,6 +79,7 @@ class KeyBindings:
     COMBINE_VIEW = ord("c")
     HIDE_COMMAND = ord("h")
     TOGGLE_GPU_PROCESSES = 9  # TAB key
+    KILL_PROCESS = ord("k")  # K key for testing
 
     # News view
     REFRESH = ord("r")

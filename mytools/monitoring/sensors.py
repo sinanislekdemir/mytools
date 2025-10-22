@@ -1,5 +1,7 @@
 # Refactored sensors module using modular components
 import curses
+import os
+import signal
 
 from mytools.core.ui import draw_panel, draw_panel_with_scrolling
 from ..core.themes import Layout
@@ -21,7 +23,7 @@ class SensorManager:
         # Panel navigation and scrolling
         self.active_panel = 0  # 0=memory, 1=processes, 2=thermal
         self.scroll_offsets = [0, 0, 0]  # Scroll offset for each scrollable panel
-        self.selected_lines = [0, 0, 0]  # Selected line in each panel
+        self.selected_lines = [0, 0, 0]  # Selected line in each panel (0 = first data row, excluding header)
         self.panel_names = ["Memory", "Processes", "Thermal"]
 
         self.cpu_monitor = CPUMonitor()
@@ -63,8 +65,10 @@ class SensorManager:
             self.selected_lines[self.active_panel] += direction
 
             # Bound the selected line to available data
+            # selected_lines uses 0-based indexing for data rows (header is excluded)
+            min_line = 0
             self.selected_lines[self.active_panel] = max(
-                0, min(self.selected_lines[self.active_panel], max_items - 1)
+                min_line, min(self.selected_lines[self.active_panel], max_items - 1)
             )
 
             # Only proceed if selection actually changed
@@ -200,6 +204,83 @@ class SensorManager:
                 is_active=(self.active_panel == 2),
                 selected_line=self.selected_lines[2],
             )
+
+    def get_selected_process_pid(self) -> tuple[int | None, str]:
+        """Get the PID of the currently selected process. Returns (pid, panel_name)."""
+        from mytools.core.logger import Logger
+        logger = Logger.get_logger()
+        
+        try:
+            if self.active_panel == 0:
+                processes = self.process_monitor.get_processes(
+                    50, "-rss", self.combined, self.hide_command
+                )
+                selected_idx = self.selected_lines[0]
+                # selected_idx is 0-based for data rows (excluding header)
+                # so actual index in processes array is selected_idx + 1
+                actual_idx = selected_idx + 1
+                if actual_idx < len(processes):
+                    process_row = processes[actual_idx]
+                    if len(process_row) >= 1:
+                        # PID is in column 0, but may have color prefix (e.g. "RED!123" or "YELLOW!456")
+                        pid_str = process_row[0]
+                        if '!' in pid_str:
+                            pid_str = pid_str.split('!', 1)[1]
+                        pid = int(pid_str)
+                        return pid, "Memory"
+            elif self.active_panel == 1:
+                if self.show_gpu_processes:
+                    gpu_processes = self.gpu_monitor.get_gpu_processes(50)
+                    selected_idx = self.selected_lines[1]
+                    # selected_idx is 0-based for data rows (excluding header)
+                    # so actual index in processes array is selected_idx + 1
+                    actual_idx = selected_idx + 1
+                    if actual_idx < len(gpu_processes):
+                        process_row = gpu_processes[actual_idx]
+                        if len(process_row) >= 1:
+                            # PID is in column 0, but may have color prefix (e.g. "RED!123" or "YELLOW!456")
+                            pid_str = process_row[0]
+                            if '!' in pid_str:
+                                pid_str = pid_str.split('!', 1)[1]
+                            pid = int(pid_str)
+                            return pid, "GPU Processes"
+                else:
+                    cpu_processes = self.process_monitor.get_processes(
+                        50, "-%cpu", self.combined, self.hide_command
+                    )
+                    selected_idx = self.selected_lines[1]
+                    # selected_idx is 0-based for data rows (excluding header)
+                    # so actual index in processes array is selected_idx + 1
+                    actual_idx = selected_idx + 1
+                    if actual_idx < len(cpu_processes):
+                        process_row = cpu_processes[actual_idx]
+                        if len(process_row) >= 1:
+                            # PID is in column 0, but may have color prefix (e.g. "RED!123" or "YELLOW!456")
+                            pid_str = process_row[0]
+                            if '!' in pid_str:
+                                pid_str = pid_str.split('!', 1)[1]
+                            pid = int(pid_str)
+                            return pid, "CPU Processes"
+        except (ValueError, IndexError, Exception) as e:
+            logger.error(f"Error getting process PID: {e}")
+        
+        return None, ""
+
+    def kill_selected_process(self) -> tuple[bool, str]:
+        """Kill the currently selected process with signal -9. Returns (success, message)."""
+        pid, panel_name = self.get_selected_process_pid()
+        if pid is None:
+            return False, "No process selected"
+        
+        try:
+            os.kill(pid, signal.SIGKILL)
+            return True, f"Successfully killed process {pid} from {panel_name}"
+        except ProcessLookupError:
+            return False, f"Process {pid} does not exist"
+        except PermissionError:
+            return False, f"Permission denied to kill process {pid}"
+        except Exception as e:
+            return False, f"Error killing process {pid}: {str(e)}"
 
 
 # Legacy functions for backward compatibility

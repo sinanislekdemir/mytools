@@ -117,6 +117,13 @@ def main_loop(stdscr: curses.window):
             last_size = (height, width)
 
         key = stdscr.getch()
+        
+        # Debug logging
+        if key != -1:
+            from mytools.core.logger import Logger
+            logger = Logger.get_logger()
+            logger.debug(f"Key pressed: {key} (chr={chr(key) if 32 <= key < 127 else 'N/A'}) mode={mode}")
+        
         if key == ord("q"):
             running = False
             _background_monitor.stop()
@@ -177,6 +184,19 @@ def main_loop(stdscr: curses.window):
                 from mytools.monitoring.sensors import get_sensor_manager
 
                 get_sensor_manager().toggle_gpu_processes()
+                other_key_handled = True
+            elif key == ord("k") or key == ord("K"):  # K key to kill process
+                from mytools.monitoring.sensors import get_sensor_manager
+                from mytools.core.ui import show_confirmation_modal
+                
+                sensor_mgr = get_sensor_manager()
+                pid, panel_name = sensor_mgr.get_selected_process_pid()
+                
+                if pid is not None:
+                    message = f"Kill process {pid} from {panel_name}?"
+                    if show_confirmation_modal(stdscr, message):
+                        success, msg = sensor_mgr.kill_selected_process()
+                        stdscr.clear()
                 other_key_handled = True
 
             # Update display (background monitor provides updated data)
