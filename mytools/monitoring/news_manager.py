@@ -9,6 +9,7 @@ from ..core.logger import Logger
 from ..core.themes import ColorPair, KeyBindings, Layout, Theme
 from .news_fetcher import NewsFetcher
 from .news_cache import NewsCache
+from .article_fetcher import ArticleFetcher
 
 
 class NewsManager:
@@ -19,6 +20,7 @@ class NewsManager:
         self.logger = Logger.get_logger()
         self.news_cache = NewsCache()
         self.news_fetcher = NewsFetcher(self.news_cache)
+        self.article_fetcher = ArticleFetcher()
 
         self.source_index = 0
         self.news_index = 0
@@ -311,55 +313,141 @@ class NewsManager:
             self.logger.exception(f"Error opening browser: {e}")
 
     def _show_news_detail(self, stdscr: curses.window, height: int, width: int) -> None:
-        """Show detailed news content in a popup."""
+        """Show detailed news content in a popup with full article fetching."""
         if not self.current_news or self.news_index >= len(self.current_news):
             return
 
         try:
             news_title = self.current_news[self.news_index]
-            summary = self.news_cache.get_summary(news_title)
+            link = self.news_cache.get_link(news_title)
 
-            if not summary:
-                summary = "No detailed content available for this news item."
+            if not link:
+                self.logger.warning(f"No link found for news item: {news_title}")
+                return
 
-            # Create popup window
-            margin_h, margin_w = Layout.get_news_window_margins()
-            popup_height = height - margin_h
-            popup_width = width - margin_w
-            popup_y, popup_x = Layout.get_news_window_position()
-
-            popup = curses.newwin(popup_height, popup_width, popup_y, popup_x)
-            popup.clear()
-            popup.box()
-
-            # Add title
-            popup.addstr(
-                0,
+            # Show loading message
+            loading_win = curses.newwin(5, 50, height // 2 - 2, width // 2 - 25)
+            loading_win.box()
+            loading_win.addstr(
                 2,
-                news_title[: popup_width - 4],
-                curses.color_pair(ColorPair.YELLOW_ON_BLACK),
+                2,
+                "Fetching article content...",
+                curses.color_pair(ColorPair.WHITE_ON_BLACK),
             )
+            loading_win.refresh()
 
-            # Add content
-            text_area = popup.subwin(
-                popup_height - 4, popup_width - 4, popup_y + 2, popup_x + 2
+            # Fetch full article
+            article_content = self.article_fetcher.fetch_article(link)
+
+            # Clear loading message
+            loading_win.clear()
+            loading_win.refresh()
+            del loading_win
+
+            # Display article in scrollable window
+            self._display_article_window(
+                stdscr, article_content, news_title, width, height
             )
-            text_area.clear()
-
-            wrapped_lines = self._wrap_text(summary, popup_width - 8)
-            for i, line in enumerate(wrapped_lines):
-                if i >= popup_height - 6:  # Leave space for borders and title
-                    break
-                text_area.addstr(i, 1, line)
-
-            text_area.refresh()
-            popup.refresh()
-
-            # Wait for key press to close popup
-            popup.getch()
 
         except Exception as e:
             self.logger.exception(f"Error showing news detail: {e}")
+
+    def _display_article_window(
+        self, stdscr: curses.window, content: str, title: str, width: int, height: int
+    ) -> None:
+        """Display article content in a scrollable window."""
+        margin_h, margin_w = Layout.get_news_window_margins()
+        new_win_height = height - margin_h
+        new_win_width = width - margin_w
+        popup_y, popup_x = Layout.get_news_window_position()
+
+        news_window = curses.newwin(new_win_height, new_win_width, popup_y, popup_x)
+        news_window.keypad(True)
+        news_window.box()
+
+        # Create scrollable text area
+        text_height = new_win_height - 4
+        text_width = new_win_width - 4
+
+        # Wrap content lines
+        content_lines = []
+        for line in content.split("\n"):
+            if len(line) == 0:
+                content_lines.append("")
+            elif len(line) <= text_width:
+                content_lines.append(line)
+            else:
+                # Wrap long lines
+                wrapped = self._wrap_text(line, text_width)
+                content_lines.extend(wrapped)
+
+        scroll_pos = 0
+        max_scroll = max(0, len(content_lines) - text_height)
+
+        while True:
+            news_window.clear()
+            news_window.box()
+
+            # Display title
+            truncated_title = (
+                title[: new_win_width - 4] if len(title) > new_win_width - 4 else title
+            )
+            news_window.addstr(
+                0, 2, truncated_title, curses.color_pair(ColorPair.YELLOW_ON_BLACK)
+            )
+
+            # Display help text at bottom
+            help_text = "[PgUp/PgDn/↑↓: Scroll] [o: Open in browser] [q/ESC: Close]"
+            if len(help_text) < new_win_width - 4:
+                news_window.addstr(
+                    new_win_height - 1,
+                    2,
+                    help_text,
+                    curses.color_pair(ColorPair.CYAN_ON_BLACK),
+                )
+
+            # Display visible content lines
+            for i in range(text_height):
+                line_idx = scroll_pos + i
+                if line_idx < len(content_lines):
+                    line = content_lines[line_idx]
+                    try:
+                        news_window.addstr(i + 2, 2, line[:text_width])
+                    except curses.error:
+                        pass  # Ignore if line is too long for window
+
+            # Display scroll indicator
+            if max_scroll > 0:
+                scroll_percent = int((scroll_pos / max_scroll) * 100)
+                indicator = f" {scroll_percent}% "
+                news_window.addstr(
+                    new_win_height - 1,
+                    new_win_width - len(indicator) - 2,
+                    indicator,
+                    curses.color_pair(ColorPair.YELLOW_ON_BLACK),
+                )
+
+            news_window.refresh()
+
+            # Handle input
+            key = news_window.getch()
+
+            if key == ord("q") or key == 27:  # q or ESC
+                break
+            elif key in KeyBindings.OPEN_BROWSER:  # 'o' or 'O'
+                self._open_in_browser()
+            elif key == curses.KEY_NPAGE:  # Page Down
+                scroll_pos = min(scroll_pos + text_height, max_scroll)
+            elif key == curses.KEY_PPAGE:  # Page Up
+                scroll_pos = max(scroll_pos - text_height, 0)
+            elif key == curses.KEY_DOWN:
+                scroll_pos = min(scroll_pos + 1, max_scroll)
+            elif key == curses.KEY_UP:
+                scroll_pos = max(scroll_pos - 1, 0)
+            elif key == curses.KEY_HOME:
+                scroll_pos = 0
+            elif key == curses.KEY_END:
+                scroll_pos = max_scroll
 
 
 # Legacy function for backward compatibility

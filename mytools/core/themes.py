@@ -237,12 +237,12 @@ class Layout:
     @staticmethod
     def get_news_window_margins() -> Tuple[int, int]:
         """Get margins for news detail window."""
-        return 20, 20  # height_margin, width_margin
+        return 6, 8  # height_margin (3 top + 3 bottom), width_margin (4 left + 4 right)
 
     @staticmethod
     def get_news_window_position() -> Tuple[int, int]:
         """Get position for news detail window."""
-        return 10, 10
+        return 3, 4  # y, x (3 rows from top, 4 columns from left)
 
     @staticmethod
     def calculate_panel_dimensions(
@@ -250,7 +250,7 @@ class Layout:
     ) -> Dict[str, Tuple[int, int, int, int]]:
         """Calculate panel dimensions based on screen size and content."""
         # Reserve space for top menu (1 line) and status bar (1 line)
-        available_height = screen_height - 2
+        available_height = screen_height - 1
         thermal_area_height = thermal_zones_count + 2
         cpu_area_height = available_height - thermal_area_height
         gpu_width = min(screen_width // 2 - 5, 35)

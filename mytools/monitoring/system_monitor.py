@@ -158,9 +158,13 @@ class GPUMonitor:
                                 command_parts = parts[type_idx + 1 : mem_idx]
                                 command = " ".join(command_parts)
 
-                            # Truncate long command names
+                            # Truncate long command names to show ...BaseName.ext...
                             if len(command) > 25:
-                                command = command[:22] + "..."
+                                basename = os.path.basename(command)
+                                if len(basename) <= 25:
+                                    command = "..." + basename + "..."
+                                else:
+                                    command = "..." + basename[:19] + "..."
 
                             process_data.append(
                                 [gpu_id, pid, proc_type, memory_str, command, memory_mb]
@@ -237,9 +241,13 @@ class GPUMonitor:
                         except ValueError:
                             memory_str = f"{memory_mb} MB"
 
-                        # Truncate long process names
+                        # Truncate long process names to show ...BaseName.ext...
                         if len(process_name) > 30:
-                            process_name = process_name[:27] + "..."
+                            basename = os.path.basename(process_name)
+                            if len(basename) <= 30:
+                                process_name = "..." + basename + "..."
+                            else:
+                                process_name = "..." + basename[:24] + "..."
 
                         processes.append(
                             [

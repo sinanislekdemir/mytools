@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mytools"
-version = "0.2.3"
+version = "0.2.5"
 description = "A comprehensive system monitoring and news reading tool with curses-based TUI"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -33,7 +33,10 @@ requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.12.3",
     "feedparser>=6.0.11",
+    "html2text>=2025.4.15",
     "lxml>=5.3.0",
+    "lxml-html-clean>=0.4.3",
+    "newspaper3k>=0.2.8",
     "requests>=2.32.3",
 ]
 

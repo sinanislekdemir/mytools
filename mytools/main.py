@@ -13,6 +13,11 @@ from mytools.monitoring.netwatch import (
 )
 from mytools.monitoring.news_manager import NewsManager
 from mytools.monitoring.sensors import switch_combined, switch_hide_command, system_loop
+from mytools.monitoring.kiosk_mode import (
+    start_kiosk_mode,
+    stop_kiosk_mode,
+    display_kiosk_mode,
+)
 from mytools.core.themes import Theme, Layout
 from mytools.core.help_system import help_system
 from mytools.core.ui import draw_status_bar, draw_top_menu, draw_vertical_separator
@@ -105,6 +110,9 @@ def main_loop(stdscr: curses.window):
     # Start background monitoring for responsive UI
     _background_monitor.start()
 
+    # Start kiosk mode background services
+    start_kiosk_mode()
+
     last_size = (0, 0)
 
     mode = "system"
@@ -117,16 +125,20 @@ def main_loop(stdscr: curses.window):
             last_size = (height, width)
 
         key = stdscr.getch()
-        
+
         # Debug logging
         if key != -1:
             from mytools.core.logger import Logger
+
             logger = Logger.get_logger()
-            logger.debug(f"Key pressed: {key} (chr={chr(key) if 32 <= key < 127 else 'N/A'}) mode={mode}")
-        
+            logger.debug(
+                f"Key pressed: {key} (chr={chr(key) if 32 <= key < 127 else 'N/A'}) mode={mode}"
+            )
+
         if key == ord("q"):
             running = False
             _background_monitor.stop()
+            stop_kiosk_mode()
             break
 
         if key == curses.KEY_F1 or key == ord("?"):
@@ -150,8 +162,15 @@ def main_loop(stdscr: curses.window):
             stdscr.clear()
             stdscr.refresh()
 
-        # Draw top menu first
-        draw_top_menu(stdscr, mode)
+        if key == curses.KEY_F5:
+            mode = "kiosk"
+            stdscr.nodelay(True)
+            stdscr.clear()
+            stdscr.refresh()
+
+        # Draw top menu first (except in kiosk mode)
+        if mode != "kiosk":
+            draw_top_menu(stdscr, mode)
 
         if mode == "system":
             # Handle navigation keys immediately for instant response
@@ -188,10 +207,10 @@ def main_loop(stdscr: curses.window):
             elif key == ord("k") or key == ord("K"):  # K key to kill process
                 from mytools.monitoring.sensors import get_sensor_manager
                 from mytools.core.ui import show_confirmation_modal
-                
+
                 sensor_mgr = get_sensor_manager()
                 pid, panel_name = sensor_mgr.get_selected_process_pid()
-                
+
                 if pid is not None:
                     message = f"Kill process {pid} from {panel_name}?"
                     if show_confirmation_modal(stdscr, message):
@@ -215,7 +234,7 @@ def main_loop(stdscr: curses.window):
             separator_x = panels["gpu"][
                 2
             ]  # Right edge of left panels (now properly sized)
-            draw_vertical_separator(stdscr, separator_x, 1, height - 2)
+            draw_vertical_separator(stdscr, separator_x, 1, height - 1)
 
             # Draw status bar AFTER all panels to ensure it's not overwritten
             current_time = time.strftime("%H:%M:%S")
@@ -289,6 +308,10 @@ def main_loop(stdscr: curses.window):
             draw_status_bar(stdscr, mode.capitalize(), current_time)
 
             stdscr.refresh()
+
+        elif mode == "kiosk":
+            display_kiosk_mode(stdscr)
+            time.sleep(1.0)  # Update every second
 
 
 def network_listener():

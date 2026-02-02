@@ -5,6 +5,8 @@ import feedparser  # type: ignore
 import requests
 from bs4 import BeautifulSoup
 
+from .article_fetcher import ArticleFetcher
+
 sources = [
     "https://hackaday.com/blog/feed/",
     "https://www.engadget.com/rss.xml",
@@ -199,27 +201,117 @@ def news_loop(stdscr: curses.window, key: int):
 
     if key == curses.KEY_ENTER or key == 10:
         try:
-            news_text = news_cache[news[news_index]]["summary"]
-            news_width = width - 22
-            new_win_height = height - 20
-            new_win_width = width - 20
+            link = news_cache[news[news_index]]["link"]
 
-            news_window = curses.newwin(new_win_height, new_win_width, 10, 10)
-            news_window.clear()
-            news_window.box()
+            # Show loading message
+            loading_win = curses.newwin(5, 50, height // 2 - 2, width // 2 - 25)
+            loading_win.box()
+            loading_win.addstr(
+                2, 2, "Fetching article content...", curses.color_pair(1)
+            )
+            loading_win.refresh()
 
-            text_box = news_window.subwin(new_win_height - 4, new_win_width - 4, 12, 12)
-            text_box.clear()
+            # Fetch full article
+            article_fetcher = ArticleFetcher()
+            article_content = article_fetcher.fetch_article(link)
 
-            news_window.addstr(0, 2, news[news_index], curses.color_pair(2))
-            for i, line in enumerate(wrap_text(news_text, news_width - 8)):
-                text_box.addstr(i, 1, line)
-                if i == height - 22:
-                    break
+            # Clear loading message
+            loading_win.clear()
+            loading_win.refresh()
+            del loading_win
 
-            text_box.refresh()
-            news_window.refresh()
+            # Display article in scrollable window
+            display_article_window(
+                stdscr, article_content, news[news_index], width, height
+            )
+
         except Exception as e:
             news_area.addstr(1, 2, f"Error: {e}")
             news_area.refresh()
             return
+
+
+def display_article_window(
+    stdscr: curses.window, content: str, title: str, width: int, height: int
+):
+    """Display article content in a scrollable window."""
+    new_win_height = height - 4
+    new_win_width = width - 4
+
+    news_window = curses.newwin(new_win_height, new_win_width, 2, 2)
+    news_window.keypad(True)
+    news_window.box()
+
+    # Create scrollable text area
+    text_height = new_win_height - 4
+    text_width = new_win_width - 4
+
+    # Wrap content lines
+    content_lines = []
+    for line in content.split("\n"):
+        if len(line) == 0:
+            content_lines.append("")
+        elif len(line) <= text_width:
+            content_lines.append(line)
+        else:
+            # Wrap long lines
+            wrapped = wrap_text(line, text_width)
+            content_lines.extend(wrapped)
+
+    scroll_pos = 0
+    max_scroll = max(0, len(content_lines) - text_height)
+
+    while True:
+        news_window.clear()
+        news_window.box()
+
+        # Display title
+        truncated_title = (
+            title[: new_win_width - 4] if len(title) > new_win_width - 4 else title
+        )
+        news_window.addstr(0, 2, truncated_title, curses.color_pair(2))
+
+        # Display help text at bottom
+        help_text = "[PgUp/PgDn: Scroll] [q/ESC: Close]"
+        news_window.addstr(new_win_height - 1, 2, help_text, curses.color_pair(1))
+
+        # Display visible content lines
+        for i in range(text_height):
+            line_idx = scroll_pos + i
+            if line_idx < len(content_lines):
+                line = content_lines[line_idx]
+                try:
+                    news_window.addstr(i + 2, 2, line[:text_width])
+                except curses.error:
+                    pass  # Ignore if line is too long for window
+
+        # Display scroll indicator
+        if max_scroll > 0:
+            scroll_percent = int((scroll_pos / max_scroll) * 100)
+            indicator = f" {scroll_percent}% "
+            news_window.addstr(
+                new_win_height - 1,
+                new_win_width - len(indicator) - 2,
+                indicator,
+                curses.color_pair(2),
+            )
+
+        news_window.refresh()
+
+        # Handle input
+        key = news_window.getch()
+
+        if key == ord("q") or key == 27:  # q or ESC
+            break
+        elif key == curses.KEY_NPAGE:  # Page Down
+            scroll_pos = min(scroll_pos + text_height, max_scroll)
+        elif key == curses.KEY_PPAGE:  # Page Up
+            scroll_pos = max(scroll_pos - text_height, 0)
+        elif key == curses.KEY_DOWN:
+            scroll_pos = min(scroll_pos + 1, max_scroll)
+        elif key == curses.KEY_UP:
+            scroll_pos = max(scroll_pos - 1, 0)
+        elif key == curses.KEY_HOME:
+            scroll_pos = 0
+        elif key == curses.KEY_END:
+            scroll_pos = max_scroll

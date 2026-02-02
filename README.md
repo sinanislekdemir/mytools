@@ -35,6 +35,7 @@ mytools
 - **F2**: System monitoring mode
 - **F3**: News reading mode  
 - **F4**: Network monitoring mode
+- **F5**: Home/Kiosk mode (Dashboard with system stats and newsfeed)
 - **Q**: Quit
 
 #### System Mode
@@ -53,6 +54,15 @@ mytools
 - **H**: Hide HTTP/HTTPS connections
 - **D**: Dump data to CSV
 - **R**: Refresh
+
+#### Home/Kiosk Mode
+- Displays real-time system statistics:
+  - GPU temperature and VRAM usage
+  - RAM and Swap memory status
+  - Top 3 CPU-intensive applications
+  - Top 3 memory-intensive applications
+- Integrated newsfeed from first 3 configured sources
+- Auto-refreshes every minute
 
 ## Configuration
 

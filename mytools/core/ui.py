@@ -583,6 +583,15 @@ def draw_top_menu(stdscr: curses.window, mode: str) -> None:
             0, 27, " F4 Network ", curses.A_BOLD | curses.color_pair(network_color)
         )
 
+        # Separator
+        stdscr.addstr(0, 39, " | ", curses.color_pair(ColorPair.BLACK_ON_WHITE))
+
+        # Home tab
+        home_color = (
+            ColorPair.BLACK_ON_YELLOW if mode == "kiosk" else ColorPair.BLACK_ON_WHITE
+        )
+        stdscr.addstr(0, 42, " F5 Home ", curses.A_BOLD | curses.color_pair(home_color))
+
         # Help on the right
         help_text = " F1/? Help "
         help_x = width - len(help_text)
@@ -616,39 +625,49 @@ def _draw_simple_data(
 def show_confirmation_modal(stdscr: curses.window, message: str) -> bool:
     """Show a confirmation modal dialog. Returns True if user confirms (Y), False otherwise."""
     height, width = stdscr.getmaxyx()
-    
+
     modal_width = min(60, width - 4)
     modal_height = 7
     modal_y = (height - modal_height) // 2
     modal_x = (width - modal_width) // 2
-    
+
     try:
         modal = curses.newwin(modal_height, modal_width, modal_y, modal_x)
         modal.keypad(True)
         modal.nodelay(False)
-        
+
         modal.box()
-        modal.addstr(0, 2, " Confirmation ", curses.A_BOLD | curses.color_pair(ColorPair.BLACK_ON_YELLOW))
-        
-        lines = message.split('\n')
+        modal.addstr(
+            0,
+            2,
+            " Confirmation ",
+            curses.A_BOLD | curses.color_pair(ColorPair.BLACK_ON_YELLOW),
+        )
+
+        lines = message.split("\n")
         for i, line in enumerate(lines[:3]):
             if len(line) > modal_width - 4:
-                line = line[:modal_width - 7] + "..."
+                line = line[: modal_width - 7] + "..."
             modal.addstr(2 + i, 2, line, curses.color_pair(ColorPair.WHITE_ON_BLACK))
-        
+
         prompt = "Press Y to confirm, N to cancel"
         prompt_x = (modal_width - len(prompt)) // 2
-        modal.addstr(modal_height - 2, prompt_x, prompt, curses.A_BOLD | curses.color_pair(ColorPair.YELLOW_ON_BLACK))
-        
+        modal.addstr(
+            modal_height - 2,
+            prompt_x,
+            prompt,
+            curses.A_BOLD | curses.color_pair(ColorPair.YELLOW_ON_BLACK),
+        )
+
         modal.refresh()
-        
+
         while True:
             key = modal.getch()
-            if key in [ord('y'), ord('Y')]:
+            if key in [ord("y"), ord("Y")]:
                 return True
-            elif key in [ord('n'), ord('N'), 27]:  # 27 is ESC
+            elif key in [ord("n"), ord("N"), 27]:  # 27 is ESC
                 return False
-                
+
     except Exception as e:
         Logger.log_warning(f"Error showing confirmation modal: {e}")
         return False
