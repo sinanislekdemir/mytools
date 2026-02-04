@@ -383,11 +383,10 @@ class NewsManager:
 
         scroll_pos = 0
         max_scroll = max(0, len(content_lines) - text_height)
-
+        title = f"[ {title} ]"
         while True:
             news_window.clear()
             news_window.box()
-
             # Display title
             truncated_title = (
                 title[: new_win_width - 4] if len(title) > new_win_width - 4 else title

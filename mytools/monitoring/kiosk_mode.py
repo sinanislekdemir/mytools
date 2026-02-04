@@ -47,6 +47,18 @@ class KioskMode:
         self._prev_clocks = None
         self._first_draw = True
 
+    def clear(self):
+        # Cache for previous display state to avoid redrawing unchanged content
+        self._prev_gpu_temp = None
+        self._prev_vram = None
+        self._prev_ram = None
+        self._prev_swap = None
+        self._prev_cpu_apps = None
+        self._prev_mem_apps = None
+        self._prev_news_items = None
+        self._prev_clocks = None
+        self._first_draw = True
+
     def start(self):
         """Start background news fetching."""
         self.running = True

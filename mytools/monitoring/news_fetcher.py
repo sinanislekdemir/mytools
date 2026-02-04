@@ -42,7 +42,7 @@ class NewsFetcher:
                 try:
                     if hasattr(entry, "published_parsed") and entry.published_parsed:
                         pub_date = entry.published_parsed
-                        date_str = f"[{pub_date.tm_mday}.{pub_date.tm_mon}.{pub_date.tm_year} {pub_date.tm_hour}:{pub_date.tm_min:02d}]"
+                        date_str = f"<{pub_date.tm_mday:02d}.{pub_date.tm_mon:02d}.{pub_date.tm_year} {pub_date.tm_hour:02d}:{pub_date.tm_min:02d}>"
                     else:
                         date_str = "[No date]"
 
