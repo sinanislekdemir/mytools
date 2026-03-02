@@ -126,25 +126,25 @@ def main_loop(stdscr: curses.window):
         if key == curses.KEY_F1 or key == ord("?"):
             help_system.show_help(stdscr)
 
-        if key == curses.KEY_F2:
+        if key == curses.KEY_F2 or key == ord("2"):
             mode = "system"
             stdscr.nodelay(True)
             stdscr.clear()
             stdscr.refresh()
 
-        if key == curses.KEY_F3:
+        if key == curses.KEY_F3 or key == ord("3"):
             mode = "news"
             stdscr.nodelay(False)
             stdscr.clear()
             stdscr.refresh()
 
-        if key == curses.KEY_F4:
+        if key == curses.KEY_F4 or key == ord("4"):
             mode = "network"
             stdscr.nodelay(True)
             stdscr.clear()
             stdscr.refresh()
 
-        if key == curses.KEY_F5:
+        if key == curses.KEY_F5 or key == ord("5"):
             mode = "kiosk"
             get_kiosk_mode().clear()
             stdscr.nodelay(True)

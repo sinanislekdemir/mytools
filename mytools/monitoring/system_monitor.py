@@ -7,7 +7,7 @@ from ..core.logger import Logger
 
 
 class GPUMonitor:
-    """Monitor GPU status using nvidia-smi."""
+    """Monitor GPU status using nvidia-smi or nouveau drivers."""
 
     def __init__(self):
         """Initialize GPU monitor."""
@@ -16,9 +16,109 @@ class GPUMonitor:
         self._gpu_cache = {}
         self._gpu_cache_time = {}
         self._gpu_cache_timeout = 1.0  # Cache for 1 second
+        self._has_nvidia_smi = None
+        self._nouveau_cards = None
+
+    def _check_nvidia_smi(self) -> bool:
+        """Check if nvidia-smi is available."""
+        if self._has_nvidia_smi is None:
+            result = os.popen("command -v nvidia-smi 2>/dev/null").read().strip()
+            self._has_nvidia_smi = bool(result)
+        return self._has_nvidia_smi
+
+    def _find_nouveau_cards(self) -> list:
+        """Find nouveau GPU cards in sysfs."""
+        if self._nouveau_cards is not None:
+            return self._nouveau_cards
+
+        cards = []
+        try:
+            drm_path = "/sys/class/drm"
+            if not os.path.exists(drm_path):
+                self._nouveau_cards = []
+                return []
+
+            for card_dir in os.listdir(drm_path):
+                if card_dir.startswith("card") and "-" not in card_dir:
+                    driver_path = os.path.join(drm_path, card_dir, "device/driver")
+                    if os.path.islink(driver_path):
+                        driver = os.path.basename(os.readlink(driver_path))
+                        if driver == "nouveau":
+                            cards.append(os.path.join(drm_path, card_dir, "device"))
+        except Exception as e:
+            self.logger.warning(f"Error finding nouveau cards: {e}")
+
+        self._nouveau_cards = cards
+        return cards
+
+    def _get_nouveau_info(self, width: int) -> Dict[str, str]:
+        """Get GPU information from nouveau driver via sysfs."""
+        try:
+            cards = self._find_nouveau_cards()
+            if not cards:
+                return {"Error": "No nouveau GPU detected".ljust(width, " ")}
+
+            card_path = cards[0]
+            gpu_info = {}
+
+            temp = "N/A"
+            try:
+                hwmon_path = os.path.join(card_path, "hwmon")
+                if os.path.exists(hwmon_path):
+                    for hwmon_dir in os.listdir(hwmon_path):
+                        temp_file = os.path.join(hwmon_path, hwmon_dir, "temp1_input")
+                        if os.path.exists(temp_file):
+                            with open(temp_file, "r") as f:
+                                temp = f"{int(f.read().strip()) // 1000}°C"
+                            break
+            except Exception as e:
+                self.logger.warning(f"Error reading nouveau temperature: {e}")
+
+            mem_total = "N/A"
+            mem_used = "N/A"
+            mem_free = "N/A"
+            mem_util = "N/A"
+            try:
+                vram_total_file = os.path.join(card_path, "mem_info_vram_total")
+                vram_used_file = os.path.join(card_path, "mem_info_vram_used")
+
+                if os.path.exists(vram_total_file):
+                    with open(vram_total_file, "r") as f:
+                        total_bytes = int(f.read().strip())
+                        mem_total = f"{total_bytes // (1024**2)} MiB"
+
+                if os.path.exists(vram_used_file):
+                    with open(vram_used_file, "r") as f:
+                        used_bytes = int(f.read().strip())
+                        mem_used = f"{used_bytes // (1024**2)} MiB"
+
+                        if os.path.exists(vram_total_file):
+                            free_bytes = total_bytes - used_bytes
+                            mem_free = f"{free_bytes // (1024**2)} MiB"
+                            mem_util = f"{(used_bytes * 100 // total_bytes)} %"
+            except Exception as e:
+                self.logger.warning(f"Error reading nouveau memory: {e}")
+
+            gpu_info = {
+                "GPU temp": temp.ljust(width, " "),
+                "GPU utilization": "N/A (nouveau)".ljust(width, " "),
+                "Memory utilization": mem_util.ljust(width, " "),
+                "Memory temp": "N/A".ljust(width, " "),
+                "Memory total": mem_total.ljust(width, " "),
+                "Memory free": mem_free.ljust(width, " "),
+                "Memory used": mem_used.ljust(width, " "),
+            }
+
+            return gpu_info
+
+        except Exception as e:
+            self.logger.warning(f"Error getting nouveau GPU info: {e}")
+            return {
+                "Error": f"GPU monitoring error: {str(e)}"[:width].ljust(width, " ")
+            }
 
     def get_nvidia_info(self, width: int) -> Dict[str, str]:
-        """Get NVIDIA GPU information using nvidia-smi."""
+        """Get GPU information using nvidia-smi or nouveau drivers."""
         try:
             import time
 
@@ -34,30 +134,34 @@ class GPUMonitor:
             ):
                 return self._gpu_cache[cache_key]
 
-            command = (
-                "nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,utilization.memory,"
-                "temperature.memory,memory.total,memory.free,memory.used --format=csv 2>/dev/null"
-            )
-            result = os.popen(command).read().split("\n")
+            # Try nvidia-smi first
+            if self._check_nvidia_smi():
+                command = (
+                    "nvidia-smi --query-gpu=temperature.gpu,utilization.gpu,utilization.memory,"
+                    "temperature.memory,memory.total,memory.free,memory.used --format=csv 2>/dev/null"
+                )
+                result = os.popen(command).read().split("\n")
 
-            if len(result) < 2 or not result[1].strip():
-                return {
-                    "Error": "NVIDIA SMI not found or no GPU detected".ljust(width, " ")
-                }
+                if len(result) >= 2 and result[1].strip():
+                    data = result[1].split(", ")
+                    if len(data) >= 7:
+                        gpu_info = {
+                            "GPU temp": f"{data[0]}°C".ljust(width, " "),
+                            "GPU utilization": f"{data[1]}".ljust(width, " "),
+                            "Memory utilization": f"{data[2]}".ljust(width, " "),
+                            "Memory temp": f"{data[3]}°C".ljust(width, " "),
+                            "Memory total": f"{data[4]}".ljust(width, " "),
+                            "Memory free": f"{data[5]}".ljust(width, " "),
+                            "Memory used": f"{data[6]}".ljust(width, " "),
+                        }
 
-            data = result[1].split(", ")
-            if len(data) < 7:
-                return {"Error": "Invalid nvidia-smi output".ljust(width, " ")}
+                        # Cache the result
+                        self._gpu_cache[cache_key] = gpu_info
+                        self._gpu_cache_time[cache_key] = current_time
+                        return gpu_info
 
-            gpu_info = {
-                "GPU temp": f"{data[0]}°C".ljust(width, " "),
-                "GPU utilization": f"{data[1]}".ljust(width, " "),
-                "Memory utilization": f"{data[2]}".ljust(width, " "),
-                "Memory temp": f"{data[3]}°C".ljust(width, " "),
-                "Memory total": f"{data[4]}".ljust(width, " "),
-                "Memory free": f"{data[5]}".ljust(width, " "),
-                "Memory used": f"{data[6]}".ljust(width, " "),
-            }
+            # Fallback to nouveau
+            gpu_info = self._get_nouveau_info(width)
 
             # Cache the result
             self._gpu_cache[cache_key] = gpu_info
