@@ -4,6 +4,7 @@ import os
 import signal
 
 from mytools.core.ui import draw_panel, draw_panel_with_scrolling
+
 from ..core.themes import Layout
 from .cpu_monitor import CPUMonitor
 from .process_monitor import ProcessMonitor
@@ -51,9 +52,7 @@ class SensorManager:
     def cycle_active_panel(self):
         """Cycle through the active panels (Memory -> Processes -> Thermal if available)."""
         thermal_zones_count = len(self.temperature_monitor.get_thermal_zones())
-        max_panel = (
-            3 if thermal_zones_count > 0 else 2
-        )  # Only cycle to thermal if it exists
+        max_panel = 3 if thermal_zones_count > 0 else 2  # Only cycle to thermal if it exists
         self.active_panel = (self.active_panel + 1) % max_panel
 
     def scroll_active_panel(self, direction: int):
@@ -80,9 +79,7 @@ class SensorManager:
                 return
 
             # Auto-scroll the panel if needed
-            panel_height = (
-                8  # Approximate visible lines in a panel (reduced for better fit)
-            )
+            panel_height = 8  # Approximate visible lines in a panel (reduced for better fit)
             current_scroll = self.scroll_offsets[self.active_panel]
             selected_line = self.selected_lines[self.active_panel]
 
@@ -91,9 +88,7 @@ class SensorManager:
                 self.scroll_offsets[self.active_panel] = selected_line
             # If selected line is below visible area, scroll down
             elif selected_line >= current_scroll + panel_height:
-                self.scroll_offsets[self.active_panel] = (
-                    selected_line - panel_height + 1
-                )
+                self.scroll_offsets[self.active_panel] = selected_line - panel_height + 1
 
             # Ensure scroll doesn't go negative or past available data
             max_scroll = max(0, max_items - panel_height)
@@ -128,7 +123,6 @@ class SensorManager:
     def display_system_info(self, stdscr: curses.window) -> None:
         """Display all system information panels."""
         height, width = stdscr.getmaxyx()
-        height += 1
         thermal_zones_count = len(self.temperature_monitor.get_thermal_zones())
 
         # Calculate panel dimensions
@@ -171,9 +165,7 @@ class SensorManager:
 
         # CPU/GPU processes panel with scrolling (panel 1)
         if self.show_gpu_processes:
-            gpu_processes_data = {
-                "GPU Processes": self.gpu_monitor.get_gpu_processes(50)
-            }
+            gpu_processes_data = {"GPU Processes": self.gpu_monitor.get_gpu_processes(50)}
             panel_title = "GPU Processes [G: CPU]"
         else:
             cpu_processes_data = {
@@ -267,7 +259,7 @@ class SensorManager:
                                 pid_str = pid_str.split("!", 1)[1]
                             pid = int(pid_str)
                             return pid, "CPU Processes"
-        except (ValueError, IndexError, Exception) as e:
+        except Exception as e:
             logger.error(f"Error getting process PID: {e}")
 
         return None, ""

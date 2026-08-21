@@ -4,18 +4,18 @@ import curses
 import time
 from threading import Thread
 
-from mytools.monitoring.netwatch import get_network_monitor
-from mytools.monitoring.news_manager import NewsManager
-from mytools.monitoring.sensors import get_sensor_manager
+from mytools.core.help_system import help_system
+from mytools.core.themes import Layout, Theme
+from mytools.core.ui import draw_status_bar, draw_top_menu, draw_vertical_separator
 from mytools.monitoring.kiosk_mode import (
+    display_kiosk_mode,
     get_kiosk_mode,
     start_kiosk_mode,
     stop_kiosk_mode,
-    display_kiosk_mode,
 )
-from mytools.core.themes import Theme, Layout
-from mytools.core.help_system import help_system
-from mytools.core.ui import draw_status_bar, draw_top_menu, draw_vertical_separator
+from mytools.monitoring.netwatch import get_network_monitor
+from mytools.monitoring.news_manager import NewsManager
+from mytools.monitoring.sensors import get_sensor_manager
 
 _news_manager = NewsManager()
 
@@ -43,7 +43,7 @@ class BackgroundMonitor:
         """Stop the background monitoring thread."""
         self.running = False
         if self.thread:
-            self.thread.join()
+            self.thread.join(timeout=2)
 
     def _monitor_loop(self):
         """Background monitoring loop that updates sensor data at different frequencies."""
@@ -134,7 +134,7 @@ def main_loop(stdscr: curses.window):
 
         if key == curses.KEY_F3 or key == ord("3"):
             mode = "news"
-            stdscr.nodelay(False)
+            stdscr.nodelay(True)
             stdscr.clear()
             stdscr.refresh()
 
@@ -193,12 +193,8 @@ def main_loop(stdscr: curses.window):
 
             height, width = stdscr.getmaxyx()
 
-            thermal_zones_count = len(
-                get_sensor_manager().temperature_monitor.get_thermal_zones()
-            )
-            panels = Layout.calculate_panel_dimensions(
-                height, width, thermal_zones_count
-            )
+            thermal_zones_count = len(get_sensor_manager().temperature_monitor.get_thermal_zones())
+            panels = Layout.calculate_panel_dimensions(height, width, thermal_zones_count)
             separator_x = panels["gpu"][2]
             draw_vertical_separator(stdscr, separator_x, 1, height - 1)
 
@@ -234,8 +230,8 @@ def main_loop(stdscr: curses.window):
                 get_network_monitor().dump_past_data()
                 network_other_handled = True
             elif key == ord("e"):
-                from mytools.core.ui import show_excluded_processes_editor
                 from mytools.core.config import Config
+                from mytools.core.ui import show_excluded_processes_editor
 
                 current_excluded = Config.get_excluded_processes()
                 new_excluded = show_excluded_processes_editor(stdscr, current_excluded)
@@ -263,6 +259,7 @@ def main_loop(stdscr: curses.window):
             draw_status_bar(stdscr, mode.capitalize(), current_time)
 
             stdscr.refresh()
+            time.sleep(0.1)
 
         elif mode == "kiosk":
             display_kiosk_mode(stdscr)
@@ -282,9 +279,10 @@ def network_listener():
 def main():
     global running
     running = True
-    t = Thread(target=network_listener)
+    t = Thread(target=network_listener, daemon=True)
     t.start()
     curses.wrapper(main_loop)
+    running = False
 
 
 if __name__ == "__main__":

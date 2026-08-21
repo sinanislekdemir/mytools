@@ -25,9 +25,7 @@ class NewsFetcher:
         try:
             self.logger.debug(f"Fetching news from: {source_url}")
 
-            response = requests.get(
-                source_url.strip(), headers=self.headers, timeout=10
-            )
+            response = requests.get(source_url.strip(), headers=self.headers, timeout=10)
             response.raise_for_status()
 
             feed = feedparser.parse(response.content)
@@ -56,9 +54,7 @@ class NewsFetcher:
 
                 except Exception as e:
                     self.logger.warning(f"Error parsing entry: {e}")
-                    news_items.append(
-                        f"[Parse Error] {getattr(entry, 'title', 'Unknown title')}"
-                    )
+                    news_items.append(f"[Parse Error] {getattr(entry, 'title', 'Unknown title')}")
 
             self.logger.info(f"Fetched {len(news_items)} news items from {source_url}")
             return news_items

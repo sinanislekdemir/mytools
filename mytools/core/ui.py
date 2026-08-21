@@ -14,9 +14,7 @@ HORIZONTAL_LINE = BoxChars.HORIZONTAL_LINE
 VERTICAL_LINE = BoxChars.VERTICAL_LINE
 
 
-def draw_panel(
-    stdscr: curses.window, title: str, data: dict, y: int, x: int, w: int, h: int
-):
+def draw_panel(stdscr: curses.window, title: str, data: dict, y: int, x: int, w: int, h: int):
     """Draw a panel with a title and data in a box with improved error handling."""
     logger = Logger.get_logger()
 
@@ -74,9 +72,7 @@ def _draw_tabular_data(
 ) -> int:
     """Draw tabular data within a panel."""
     try:
-        panel_area.addstr(
-            row, 0, f"{key}:", curses.color_pair(ColorPair.YELLOW_ON_BLACK)
-        )
+        panel_area.addstr(row, 0, f"{key}:", curses.color_pair(ColorPair.YELLOW_ON_BLACK))
         row += 1
 
         if not value:
@@ -124,9 +120,7 @@ def _draw_tabular_data(
             # Fill the entire row width with the background color for striping effect
             str_to_print = str_to_print.ljust(text_area_width)
 
-            panel_area.addstr(
-                row, 0, str_to_print, curses.color_pair(display_color) | attributes
-            )
+            panel_area.addstr(row, 0, str_to_print, curses.color_pair(display_color) | attributes)
             row += 1
 
         return row
@@ -234,9 +228,7 @@ def draw_status_bar(stdscr: curses.window, mode: str, extra_info: str = "") -> N
         # Don't let status bar issues crash the application
 
 
-def draw_vertical_separator(
-    stdscr: curses.window, x: int, start_y: int, end_y: int
-) -> None:
+def draw_vertical_separator(stdscr: curses.window, x: int, start_y: int, end_y: int) -> None:
     """Draw a vertical block separator."""
     try:
         for y in range(start_y, end_y):
@@ -248,28 +240,32 @@ def draw_vertical_separator(
         logger.error(f"Failed to draw vertical separator at x={x}: {e}")
 
 
-def show_excluded_processes_editor(
-    stdscr: curses.window, current_keywords: list
-) -> list:
+def show_excluded_processes_editor(stdscr: curses.window, current_keywords: list) -> list:
     """Show dialog to edit excluded process keywords."""
 
     height, width = stdscr.getmaxyx()
     dialog_height = 7
     dialog_width = min(60, width - 4)
+    if height < dialog_height or dialog_width < 20:
+        return list(current_keywords)
     start_y = (height - dialog_height) // 2
     start_x = (width - dialog_width) // 2
 
     # Create dialog window
-    dialog = curses.newwin(dialog_height, dialog_width, start_y, start_x)
-    dialog.box()
+    try:
+        dialog = curses.newwin(dialog_height, dialog_width, start_y, start_x)
+        dialog.keypad(True)
+        dialog.box()
 
-    # Title
-    title = " Exclude Process Keywords "
-    dialog.addstr(0, (dialog_width - len(title)) // 2, title, curses.A_BOLD)
+        # Title
+        title = " Exclude Process Keywords "
+        dialog.addstr(0, (dialog_width - len(title)) // 2, title, curses.A_BOLD)
 
-    # Instructions
-    dialog.addstr(2, 2, "Enter keywords separated by commas:")
-    dialog.addstr(3, 2, "(Processes containing these words will be hidden)")
+        # Instructions
+        dialog.addstr(2, 2, "Enter keywords separated by commas:")
+        dialog.addstr(3, 2, "(Processes containing these words will be hidden)")
+    except curses.error:
+        return list(current_keywords)
 
     # Current keywords as comma-separated string
     keywords_text = ", ".join(current_keywords)
@@ -375,9 +371,7 @@ def draw_panel_with_scrolling(
         right_pad = padding - left_pad
 
         full_title = " " * left_pad + title_text + " " * right_pad
-        panel_area.addstr(
-            0, 0, full_title, curses.A_BOLD | curses.color_pair(title_color)
-        )
+        panel_area.addstr(0, 0, full_title, curses.A_BOLD | curses.color_pair(title_color))
 
         text_area_height = h
         text_area_width = w - 2
@@ -421,9 +415,7 @@ def _draw_tabular_data_with_scrolling(
 ) -> int:
     """Draw tabular data with scrolling support."""
     try:
-        panel_area.addstr(
-            row, 0, f"{key}:", curses.color_pair(ColorPair.YELLOW_ON_BLACK)
-        )
+        panel_area.addstr(row, 0, f"{key}:", curses.color_pair(ColorPair.YELLOW_ON_BLACK))
         row += 1
 
         if not value:
@@ -495,9 +487,7 @@ def _draw_tabular_data_with_scrolling(
                 str_to_print = str_to_print[: text_area_width - 3] + "..."
 
             # Check if this is the selected line (adjust for header offset)
-            data_line_index = (
-                line_index - 1
-            )  # Convert to 0-based data index (excluding header)
+            data_line_index = line_index - 1  # Convert to 0-based data index (excluding header)
             is_selected = data_line_index == selected_line
 
             if is_selected:
@@ -511,9 +501,7 @@ def _draw_tabular_data_with_scrolling(
             # Fill the entire row width with the background color for striping effect
             str_to_print = str_to_print.ljust(text_area_width)
 
-            panel_area.addstr(
-                row, 0, str_to_print, curses.color_pair(display_color) | attributes
-            )
+            panel_area.addstr(row, 0, str_to_print, curses.color_pair(display_color) | attributes)
             row += 1
 
         # Show scroll indicators if needed
@@ -556,40 +544,28 @@ def draw_top_menu(stdscr: curses.window, mode: str) -> None:
         stdscr.addstr(0, 0, " " * width, curses.color_pair(ColorPair.BLACK_ON_WHITE))
 
         # Sensors tab
-        sensors_color = (
-            ColorPair.BLACK_ON_YELLOW if mode == "system" else ColorPair.BLACK_ON_WHITE
-        )
-        stdscr.addstr(
-            0, 0, " F2 Sensors ", curses.A_BOLD | curses.color_pair(sensors_color)
-        )
+        sensors_color = ColorPair.BLACK_ON_YELLOW if mode == "system" else ColorPair.BLACK_ON_WHITE
+        stdscr.addstr(0, 0, " F2 Sensors ", curses.A_BOLD | curses.color_pair(sensors_color))
 
         # Separator
         stdscr.addstr(0, 12, " | ", curses.color_pair(ColorPair.BLACK_ON_WHITE))
 
         # News tab
-        news_color = (
-            ColorPair.BLACK_ON_YELLOW if mode == "news" else ColorPair.BLACK_ON_WHITE
-        )
+        news_color = ColorPair.BLACK_ON_YELLOW if mode == "news" else ColorPair.BLACK_ON_WHITE
         stdscr.addstr(0, 15, " F3 News ", curses.A_BOLD | curses.color_pair(news_color))
 
         # Separator
         stdscr.addstr(0, 24, " | ", curses.color_pair(ColorPair.BLACK_ON_WHITE))
 
         # Network tab
-        network_color = (
-            ColorPair.BLACK_ON_YELLOW if mode == "network" else ColorPair.BLACK_ON_WHITE
-        )
-        stdscr.addstr(
-            0, 27, " F4 Network ", curses.A_BOLD | curses.color_pair(network_color)
-        )
+        network_color = ColorPair.BLACK_ON_YELLOW if mode == "network" else ColorPair.BLACK_ON_WHITE
+        stdscr.addstr(0, 27, " F4 Network ", curses.A_BOLD | curses.color_pair(network_color))
 
         # Separator
         stdscr.addstr(0, 39, " | ", curses.color_pair(ColorPair.BLACK_ON_WHITE))
 
         # Home tab
-        home_color = (
-            ColorPair.BLACK_ON_YELLOW if mode == "kiosk" else ColorPair.BLACK_ON_WHITE
-        )
+        home_color = ColorPair.BLACK_ON_YELLOW if mode == "kiosk" else ColorPair.BLACK_ON_WHITE
         stdscr.addstr(0, 42, " F5 Home ", curses.A_BOLD | curses.color_pair(home_color))
 
         # Help on the right

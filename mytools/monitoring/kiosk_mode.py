@@ -2,14 +2,14 @@
 
 import curses
 import time
-from threading import Thread, Lock
+from threading import Lock, Thread
 from typing import List, Optional, Tuple
 
 from ..core.config import Config
 from ..core.logger import Logger
-from ..core.themes import ColorPair, BoxChars
-from .news_fetcher import NewsFetcher
+from ..core.themes import BoxChars, ColorPair
 from .news_cache import NewsCache
+from .news_fetcher import NewsFetcher
 from .sensors import get_sensor_manager
 
 
@@ -64,8 +64,6 @@ class KioskMode:
         self.running = True
         self.news_thread = Thread(target=self._news_update_loop, daemon=True)
         self.news_thread.start()
-        # Initial fetch
-        self._fetch_news()
 
     def stop(self):
         """Stop background news fetching."""
@@ -153,9 +151,7 @@ class KioskMode:
 
             # If no specific CPU zone found, use the first available thermal zone
             if not cpu_temp and thermal_zones:
-                temp_data = sensor_mgr.temperature_monitor.read_temperature(
-                    thermal_zones[0]
-                )
+                temp_data = sensor_mgr.temperature_monitor.read_temperature(thermal_zones[0])
                 if not temp_data.get("error", True):
                     temp_val = temp_data.get("temp", 0)
                     cpu_temp = f"{temp_val:.1f}°C"
@@ -175,18 +171,14 @@ class KioskMode:
         import subprocess
 
         try:
-            result = subprocess.run(
-                ["sensors"], capture_output=True, text=True, timeout=2
-            )
+            result = subprocess.run(["sensors"], capture_output=True, text=True, timeout=2)
             if result.returncode == 0:
                 lines = result.stdout.split("\n")
                 # Look for CPU or Core temperature lines
                 for line in lines:
                     lower_line = line.lower()
                     if (
-                        "core" in lower_line
-                        or "cpu" in lower_line
-                        or "package" in lower_line
+                        "core" in lower_line or "cpu" in lower_line or "package" in lower_line
                     ) and "°c" in lower_line:
                         # Extract temperature value
                         # Format usually: "Core 0:        +45.0°C"
@@ -195,9 +187,7 @@ class KioskMode:
                         match = re.search(r"\+?(\d+\.?\d*)\s*°c", line, re.IGNORECASE)
                         if match:
                             temp_val = float(match.group(1))
-                            self.logger.info(
-                                f"Found CPU temp from sensors: {temp_val}°C"
-                            )
+                            self.logger.info(f"Found CPU temp from sensors: {temp_val}°C")
                             return f"{temp_val:.1f}°C"
         except Exception as e:
             self.logger.debug(f"Could not get CPU temp from sensors: {e}")
@@ -269,9 +259,7 @@ class KioskMode:
         """Get top N CPU using apps from existing process monitor."""
         try:
             sensor_mgr = get_sensor_manager()
-            processes = sensor_mgr.process_monitor.get_processes(
-                count + 1, "-%cpu", False, False
-            )
+            processes = sensor_mgr.process_monitor.get_processes(count + 1, "-%cpu", False, False)
 
             # Skip header row and parse
             result = []
@@ -294,9 +282,7 @@ class KioskMode:
         """Get top N memory using apps from existing process monitor."""
         try:
             sensor_mgr = get_sensor_manager()
-            processes = sensor_mgr.process_monitor.get_processes(
-                count + 1, "-rss", False, False
-            )
+            processes = sensor_mgr.process_monitor.get_processes(count + 1, "-rss", False, False)
 
             # Skip header row and parse
             result = []
@@ -360,13 +346,13 @@ class KioskMode:
             return executable
 
     def display(self, stdscr: curses.window):
-        """Display the kiosk mode with selective redrawing."""
+        """Display the kiosk mode."""
         height, width = stdscr.getmaxyx()
 
-        # Only clear on first draw or mode change
-        if self._first_draw:
-            stdscr.clear()
-            self._first_draw = False
+        if height < 5 or width < 20:
+            return
+
+        stdscr.clear()
 
         # Get all data
         gpu_temp, cpu_temp = self._get_gpu_cpu_temp()
@@ -382,99 +368,66 @@ class KioskMode:
         y = 1  # Start from top row
         x_left = 2
 
-        # GPU/CPU Temperature (only redraw if changed)
-        temp_info = (gpu_temp, cpu_temp)
-        if temp_info != self._prev_gpu_temp:
-            temp_parts = []
-            if gpu_temp:
-                temp_parts.append(f"GPU: {gpu_temp}")
-            if cpu_temp:
-                temp_parts.append(f"CPU: {cpu_temp}")
+        # GPU/CPU Temperature
+        temp_parts = []
+        if gpu_temp:
+            temp_parts.append(f"GPU: {gpu_temp}")
+        if cpu_temp:
+            temp_parts.append(f"CPU: {cpu_temp}")
+        temp_display = "  ".join(temp_parts) if temp_parts else "N/A"
+        self._draw_stat_box(stdscr, y, x_left, "GPU/CPU TEMP", temp_display)
+        y += 2
 
-            # Display on same line separated by space
-            temp_display = "  ".join(temp_parts) if temp_parts else "N/A"
-            self._draw_stat_box(stdscr, y, x_left, "GPU/CPU TEMP", temp_display)
-            self._prev_gpu_temp = temp_info
-        y += 2  # Back to 2 since single line now
-
-        # VRAM (only redraw if changed)
-        vram_info = (vram_used_str, vram_total_str)
-        if vram_info != self._prev_vram:
-            if vram_used_str and vram_total_str:
-                vram_text = f"Used: {vram_used_str}\nTotal: {vram_total_str}"
-                self._draw_stat_box(stdscr, y, x_left, "VRAM", vram_text)
-            else:
-                self._draw_stat_box(stdscr, y, x_left, "VRAM", "N/A")
-            self._prev_vram = vram_info
+        # VRAM
+        if vram_used_str and vram_total_str:
+            vram_text = f"Used: {vram_used_str}\nTotal: {vram_total_str}"
+        else:
+            vram_text = "N/A"
+        self._draw_stat_box(stdscr, y, x_left, "VRAM", vram_text)
         y += 3
 
-        # RAM (only redraw if changed)
-        ram_info = (ram_avail, ram_used)
-        if ram_info != self._prev_ram:
-            ram_text = f"Avail: {ram_avail} MB\nUsed: {ram_used} MB"
-            self._draw_stat_box(stdscr, y, x_left, "RAM", ram_text)
-            self._prev_ram = ram_info
+        # RAM
+        ram_text = f"Avail: {ram_avail} MB\nUsed: {ram_used} MB"
+        self._draw_stat_box(stdscr, y, x_left, "RAM", ram_text)
         y += 3
 
-        # Swap (only redraw if changed)
-        swap_info = (swap_avail, swap_used)
-        if swap_info != self._prev_swap:
-            swap_text = f"Avail: {swap_avail} MB\nUsed: {swap_used} MB"
-            self._draw_stat_box(stdscr, y, x_left, "SWAP", swap_text)
-            self._prev_swap = swap_info
+        # Swap
+        swap_text = f"Avail: {swap_avail} MB\nUsed: {swap_used} MB"
+        self._draw_stat_box(stdscr, y, x_left, "SWAP", swap_text)
         y += 3
 
-        # Top CPU Apps (only redraw if changed)
-        if top_cpu != self._prev_cpu_apps:
-            cpu_lines = []
-            for i, (name, cpu) in enumerate(top_cpu, 1):
-                cmd_short = name[:25] if len(name) <= 25 else name[:22] + "..."
-                cpu_lines.append(f"{i}. {cmd_short:25} {cpu:5.1f}%")
-            self._draw_stat_box(
-                stdscr,
-                y,
-                x_left,
-                "TOP CPU",
-                "\n".join(cpu_lines) if cpu_lines else "No data",
-            )
-            self._prev_cpu_apps = top_cpu
-        y += len(top_cpu) + 1  # Reduced gap
+        # Top CPU Apps
+        cpu_lines = []
+        for i, (name, cpu) in enumerate(top_cpu, 1):
+            cmd_short = name[:25] if len(name) <= 25 else name[:22] + "..."
+            cpu_lines.append(f"{i}. {cmd_short:25} {cpu:5.1f}%")
+        self._draw_stat_box(
+            stdscr, y, x_left, "TOP CPU", "\n".join(cpu_lines) if cpu_lines else "No data"
+        )
+        y += len(top_cpu) + 1
 
-        # Top Memory Apps (only redraw if changed)
-        if top_mem != self._prev_mem_apps:
-            mem_lines = []
-            for i, (name, mem) in enumerate(top_mem, 1):
-                cmd_short = name[:25] if len(name) <= 25 else name[:22] + "..."
-                mem_lines.append(f"{i}. {cmd_short:25} {mem}")
-            self._draw_stat_box(
-                stdscr,
-                y,
-                x_left,
-                "TOP MEMORY",
-                "\n".join(mem_lines) if mem_lines else "No data",
-            )
-            self._prev_mem_apps = top_mem
+        # Top Memory Apps
+        mem_lines = []
+        for i, (name, mem) in enumerate(top_mem, 1):
+            cmd_short = name[:25] if len(name) <= 25 else name[:22] + "..."
+            mem_lines.append(f"{i}. {cmd_short:25} {mem}")
+        self._draw_stat_box(
+            stdscr,
+            y,
+            x_left,
+            "TOP MEMORY",
+            "\n".join(mem_lines) if mem_lines else "No data",
+        )
         y += len(top_mem) + 2
 
         # World Clocks - add as many as fit in remaining space
         remaining_rows = height - y  # Use all remaining space
         if remaining_rows > 0:
-            # Only redraw clocks every second (they change frequently)
-            import time as time_module
+            self._draw_world_clocks(stdscr, y, x_left, remaining_rows)
 
-            current_minute = int(time_module.time() / 60)  # Change every minute
-            if current_minute != self._prev_clocks:
-                self._draw_world_clocks(stdscr, y, x_left, remaining_rows)
-                self._prev_clocks = current_minute
-
-        # Right column - Newsfeed (only redraw if news changed)
+        # Right column - Newsfeed
         news_x = x_left + left_column_width + 3  # 3 chars padding
-        with self.news_lock:
-            current_news = list(self.news_items)  # Make a copy for comparison
-
-        if current_news != self._prev_news_items:
-            self._draw_newsfeed(stdscr, height, width, news_x)
-            self._prev_news_items = current_news
+        self._draw_newsfeed(stdscr, height, width, news_x)
 
         stdscr.refresh()
 
@@ -550,9 +503,7 @@ class KioskMode:
         except Exception as e:
             self.logger.debug(f"Error drawing world clocks: {e}")
 
-    def _draw_stat_box(
-        self, stdscr: curses.window, y: int, x: int, title: str, content: str
-    ):
+    def _draw_stat_box(self, stdscr: curses.window, y: int, x: int, title: str, content: str):
         """Draw a small box with title and content, clearing old content."""
         try:
             # Calculate the width needed for this stat box
@@ -663,9 +614,7 @@ class KioskMode:
                     curses.color_pair(ColorPair.YELLOW_ON_BLACK),
                 )
                 # Draw time in cyan
-                stdscr.addstr(
-                    y, x + 2, time_str + " ", curses.color_pair(ColorPair.CYAN_ON_BLACK)
-                )
+                stdscr.addstr(y, x + 2, time_str + " ", curses.color_pair(ColorPair.CYAN_ON_BLACK))
                 # Draw rest in alternating color, padded
                 rest_padded = rest.ljust(available_width - len(time_str) - 3)
                 stdscr.addstr(
@@ -690,9 +639,7 @@ class KioskMode:
             except curses.error:
                 pass
 
-    def _draw_newsfeed(
-        self, stdscr: curses.window, height: int, width: int, x_right: int
-    ):
+    def _draw_newsfeed(self, stdscr: curses.window, height: int, width: int, x_right: int):
         """Draw the newsfeed on the right side."""
         available_width = width - x_right - 4  # 4 chars margin to prevent overflow
         y = 1  # Start from top row
@@ -766,8 +713,7 @@ class KioskMode:
                             y,
                             x_right,
                             f"─ {source} ─",
-                            curses.color_pair(ColorPair.YELLOW_ON_BLACK)
-                            | curses.A_BOLD,
+                            curses.color_pair(ColorPair.YELLOW_ON_BLACK) | curses.A_BOLD,
                         )
                     except curses.error:
                         pass
@@ -780,9 +726,7 @@ class KioskMode:
                             break
 
                         # Strip date, keep only time [HH:MM] format
-                        display_text = self._format_news_item_for_kiosk(
-                            item, available_width
-                        )
+                        display_text = self._format_news_item_for_kiosk(item, available_width)
                         # Draw with colors (striped)
                         is_odd = items_shown % 2 == 0
                         self._draw_news_item_colored(

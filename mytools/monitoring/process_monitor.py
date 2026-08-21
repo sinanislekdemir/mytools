@@ -64,13 +64,9 @@ class ProcessMonitor:
             result = os.popen(command).read().split("\n")
 
             if not combined:
-                processes = self._get_individual_processes(
-                    result, n, sort_by, hide_command
-                )
+                processes = self._get_individual_processes(result, n, sort_by, hide_command)
             else:
-                processes = self._get_combined_processes(
-                    result, n, sort_by, hide_command
-                )
+                processes = self._get_combined_processes(result, n, sort_by, hide_command)
 
             # Cache the result
             self._cache[cache_key] = processes

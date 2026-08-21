@@ -1,5 +1,7 @@
 """CPU monitoring utilities."""
 
+import threading
+import time
 from typing import Dict, List, Optional
 
 from ..core.config import Config
@@ -17,6 +19,7 @@ class CPUMonitor:
         self._cpu_cache = None
         self._cpu_cache_time = 0
         self._cpu_cache_timeout = 1.0  # Cache for 1 second
+        self._lock = threading.Lock()
 
     def read_cpu_times(self) -> List[List[int]]:
         """Read CPU times from /proc/stat."""
@@ -26,9 +29,7 @@ class CPUMonitor:
 
             cpu_times = []
             for line in lines:
-                if line.startswith(
-                    "cpu"
-                ):  # Get all CPU lines including cpu0, cpu1, etc.
+                if line.startswith("cpu"):  # Get all CPU lines including cpu0, cpu1, etc.
                     times = line.split()[
                         1:8
                     ]  # Extract times (user, nice, system, idle, iowait, irq, softirq)
@@ -72,8 +73,11 @@ class CPUMonitor:
 
     def get_cpu_usage_data(self) -> Dict[str, str]:
         """Get CPU usage data for all cores."""
-        import time
+        with self._lock:
+            return self._get_cpu_usage_data_locked()
 
+    def _get_cpu_usage_data_locked(self) -> Dict[str, str]:
+        """Compute CPU usage data; caller must hold self._lock."""
         # Check cache first
         current_time = time.time()
         if (

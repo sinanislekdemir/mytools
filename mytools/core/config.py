@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class Config:
@@ -55,14 +55,17 @@ class Config:
         sources_file = Path("news_sources.txt")
         home_sources_file = Path.home() / ".news_sources.txt"
 
-        if sources_file.exists():
-            with open(sources_file, "r") as f:
-                return [line.strip() for line in f.readlines() if line.strip()]
-        elif home_sources_file.exists():
-            with open(home_sources_file, "r") as f:
-                return [line.strip() for line in f.readlines() if line.strip()]
-        else:
-            return cls.DEFAULT_NEWS_SOURCES
+        for path in (sources_file, home_sources_file):
+            try:
+                if path.exists():
+                    with open(path, "r") as f:
+                        sources = [line.strip() for line in f.readlines() if line.strip()]
+                    if sources:
+                        return sources
+            except (OSError, IOError, UnicodeDecodeError) as e:
+                print(f"Warning: Could not read news sources from {path}: {e}")
+
+        return cls.DEFAULT_NEWS_SOURCES
 
     @classmethod
     def get_temp_dir(cls) -> Path:

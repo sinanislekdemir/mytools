@@ -1,9 +1,28 @@
 """Enhanced help system with modern UI design."""
 
 import curses
+import unicodedata
 from typing import Dict, List, Tuple
 
 from .themes import ColorPair
+
+
+def _display_width(text: str) -> int:
+    """Return the terminal display width of a string (wide chars count as 2)."""
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
+
+
+def _truncate_display(text: str, max_width: int) -> str:
+    """Truncate a string to a terminal display width without splitting wide chars."""
+    result = ""
+    width = 0
+    for ch in text:
+        char_width = 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+        if width + char_width > max_width:
+            break
+        result += ch
+        width += char_width
+    return result
 
 
 class HelpSystem:
@@ -46,33 +65,37 @@ class HelpSystem:
 
     def show_help(self, stdscr: curses.window) -> None:
         """Display the enhanced help window."""
-        height, width = stdscr.getmaxyx()
+        try:
+            height, width = stdscr.getmaxyx()
 
-        # Calculate optimal window size
-        help_width = min(80, width - 4)
-        help_height = min(24, height - 4)
+            # Calculate optimal window size
+            help_width = min(80, width - 4)
+            help_height = min(24, height - 4)
 
-        # Center the window
-        start_y = (height - help_height) // 2
-        start_x = (width - help_width) // 2
+            if help_width < 20 or help_height < 10:
+                return
 
-        # Create help window with shadow effect
-        self._draw_shadow(stdscr, start_y + 1, start_x + 1, help_width, help_height)
+            # Center the window
+            start_y = (height - help_height) // 2
+            start_x = (width - help_width) // 2
 
-        help_win = curses.newwin(help_height, help_width, start_y, start_x)
-        help_win.keypad(True)
+            # Create help window with shadow effect
+            self._draw_shadow(stdscr, start_y + 1, start_x + 1, help_width, help_height)
 
-        self._draw_help_content(help_win, help_width, help_height)
+            help_win = curses.newwin(help_height, help_width, start_y, start_x)
+            help_win.keypad(True)
 
-        # Wait for user input
-        help_win.getch()
-        help_win.clear()
-        help_win.refresh()
-        del help_win
+            self._draw_help_content(help_win, help_width, help_height)
 
-    def _draw_shadow(
-        self, stdscr: curses.window, y: int, x: int, width: int, height: int
-    ) -> None:
+            # Wait for user input
+            help_win.getch()
+            help_win.clear()
+            help_win.refresh()
+            del help_win
+        except curses.error:
+            pass
+
+    def _draw_shadow(self, stdscr: curses.window, y: int, x: int, width: int, height: int) -> None:
         """Draw a subtle shadow effect."""
         try:
             for i in range(height):
@@ -95,9 +118,7 @@ class HelpSystem:
         except curses.error:
             pass
 
-    def _draw_help_content(
-        self, help_win: curses.window, width: int, height: int
-    ) -> None:
+    def _draw_help_content(self, help_win: curses.window, width: int, height: int) -> None:
         """Draw the help content with modern styling."""
         help_win.clear()
 
@@ -105,8 +126,8 @@ class HelpSystem:
         self._draw_fancy_border(help_win, width, height)
 
         # Title with gradient-like effect
-        title = "📖 MyTools - Help & Shortcuts"
-        title_x = (width - len(title)) // 2
+        title = _truncate_display("📖 MyTools - Help & Shortcuts", width - 4)
+        title_x = max(1, (width - _display_width(title)) // 2)
         help_win.addstr(
             1,
             title_x,
@@ -164,9 +185,7 @@ class HelpSystem:
             # Add some color to the border
             # Top and bottom lines
             for x in range(1, width - 1):
-                win.addch(
-                    0, x, curses.ACS_HLINE, curses.color_pair(ColorPair.BLUE_ON_BLACK)
-                )
+                win.addch(0, x, curses.ACS_HLINE, curses.color_pair(ColorPair.BLUE_ON_BLACK))
                 win.addch(
                     height - 1,
                     x,
@@ -176,9 +195,7 @@ class HelpSystem:
 
             # Side lines
             for y in range(1, height - 1):
-                win.addch(
-                    y, 0, curses.ACS_VLINE, curses.color_pair(ColorPair.BLUE_ON_BLACK)
-                )
+                win.addch(y, 0, curses.ACS_VLINE, curses.color_pair(ColorPair.BLUE_ON_BLACK))
                 win.addch(
                     y,
                     width - 1,
@@ -187,9 +204,7 @@ class HelpSystem:
                 )
 
             # Corners
-            win.addch(
-                0, 0, curses.ACS_ULCORNER, curses.color_pair(ColorPair.BLUE_ON_BLACK)
-            )
+            win.addch(0, 0, curses.ACS_ULCORNER, curses.color_pair(ColorPair.BLUE_ON_BLACK))
             win.addch(
                 0,
                 width - 1,

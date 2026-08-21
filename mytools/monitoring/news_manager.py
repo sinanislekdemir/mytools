@@ -1,15 +1,17 @@
 """Refactored news module with separated concerns."""
 
 import curses
-import os
-from typing import List, Optional
+import subprocess
+import time
+from threading import Lock, Thread
+from typing import Any, Dict, List, Optional
 
 from ..core.config import Config
 from ..core.logger import Logger
 from ..core.themes import ColorPair, KeyBindings, Layout, Theme
-from .news_fetcher import NewsFetcher
-from .news_cache import NewsCache
 from .article_fetcher import ArticleFetcher
+from .news_cache import NewsCache
+from .news_fetcher import NewsFetcher
 
 
 class NewsManager:
@@ -28,16 +30,25 @@ class NewsManager:
         self.sources = Config.get_news_sources()
         self.current_news: Optional[List[str]] = None
 
+        # Async fetch state
+        self.loading = False
+        self._fetch_lock = Lock()
+        self._fetch_generation = 0
+
     def handle_input(self, stdscr: curses.window, key: int) -> None:
         """Handle news mode input and display."""
         height, width = stdscr.getmaxyx()
+        if height < 3 or width < 3:
+            return
 
-        # Create news area
-        news_area = curses.newwin(height, width, 1, 0)
+        # Create news area (reserve top menu row and bottom status bar row)
+        news_area = curses.newwin(height - 1, width, 1, 0)
 
-        # Load news on first access
-        if self.current_news is None:
-            self._load_current_source(news_area)
+        # Start background load on first access
+        with self._fetch_lock:
+            should_fetch = self.current_news is None and not self.loading
+        if should_fetch:
+            self._start_fetch(self.source_index)
 
         # Handle navigation keys
         self._handle_navigation_keys(key, news_area)
@@ -46,22 +57,52 @@ class NewsManager:
         self._handle_action_keys(key, stdscr, news_area, height, width)
 
         # Display news list
-        self._display_news_list(news_area, height, width)
+        self._display_news_list(news_area, height - 1, width)
+
+    def _start_fetch(self, source_index: int) -> None:
+        """Start a background fetch for the given source index."""
+        if not self.sources:
+            self.current_news = ["No news sources configured"]
+            self.loading = False
+            return
+
+        source_index %= len(self.sources)
+        source_url = self.sources[source_index]
+
+        with self._fetch_lock:
+            self._fetch_generation += 1
+            generation = self._fetch_generation
+            self.loading = True
+
+        Thread(target=self._fetch_worker, args=(generation, source_url), daemon=True).start()
+
+    def _fetch_worker(self, generation: int, source_url: str) -> None:
+        """Background worker that fetches a single source."""
+        try:
+            news = self.news_fetcher.fetch_news(source_url)
+        except Exception as e:
+            self.logger.exception(f"Unexpected error fetching news from {source_url}: {e}")
+            news = [f"Error fetching news: {e}"]
+
+        with self._fetch_lock:
+            if generation == self._fetch_generation:
+                self.current_news = news
+                self.loading = False
 
     def _handle_navigation_keys(self, key: int, news_area: curses.window) -> None:
         """Handle navigation key presses."""
         if key == 9:  # Tab key
-            self._next_source(news_area)
+            self._next_source()
         elif key == KeyBindings.REFRESH:
-            self._refresh_current_source(news_area)
+            self._refresh_current_source()
         elif key == curses.KEY_DOWN:
             self._navigate_down()
         elif key == curses.KEY_UP:
             self._navigate_up()
         elif key == curses.KEY_LEFT:
-            self._previous_source(news_area)
+            self._previous_source()
         elif key == curses.KEY_RIGHT:
-            self._next_source(news_area)
+            self._next_source()
         elif key == curses.KEY_NPAGE:
             self._page_down(news_area.getmaxyx()[0])
         elif key == curses.KEY_PPAGE:
@@ -81,28 +122,34 @@ class NewsManager:
         elif key in KeyBindings.READ_NEWS or key == 13:  # Also check for CR (13)
             self._show_news_detail(stdscr, height, width)
 
-    def _next_source(self, news_area: curses.window) -> None:
+    def _next_source(self) -> None:
         """Move to next news source."""
+        if not self.sources:
+            return
         self.source_index = (self.source_index + 1) % len(self.sources)
-        self._load_current_source(news_area)
+        self.current_news = None
         self.news_index = 0
         self.scroll_offset = 0
+        self._start_fetch(self.source_index)
 
-    def _previous_source(self, news_area: curses.window) -> None:
+    def _previous_source(self) -> None:
         """Move to previous news source."""
+        if not self.sources:
+            return
         self.source_index = (self.source_index - 1) % len(self.sources)
-        self._load_current_source(news_area)
+        self.current_news = None
         self.news_index = 0
         self.scroll_offset = 0
+        self._start_fetch(self.source_index)
 
-    def _refresh_current_source(self, news_area: curses.window) -> None:
+    def _refresh_current_source(self) -> None:
         """Refresh current news source."""
-        self._show_loading(news_area)
-        self.current_news = self.news_fetcher.fetch_news(
-            self.sources[self.source_index]
-        )
+        if not self.sources:
+            return
+        self.current_news = None
         self.news_index = 0
         self.scroll_offset = 0
+        self._start_fetch(self.source_index)
 
     def _navigate_down(self) -> None:
         """Navigate down in news list."""
@@ -119,55 +166,37 @@ class NewsManager:
     def _page_down(self, page_size: int) -> None:
         """Navigate page down."""
         if self.current_news:
-            self.news_index = min(
-                len(self.current_news) - 1, self.news_index + page_size - 2
-            )
+            self.news_index = min(len(self.current_news) - 1, self.news_index + page_size - 2)
 
     def _page_up(self, page_size: int) -> None:
         """Navigate page up."""
         self.news_index = max(0, self.news_index - (page_size - 2))
 
-    def _load_current_source(self, news_area: curses.window) -> None:
-        """Load news from current source."""
-        self._show_loading(news_area)
-        self.current_news = self.news_fetcher.fetch_news(
-            self.sources[self.source_index]
-        )
-
-    def _show_loading(self, news_area: curses.window) -> None:
-        """Show loading message."""
-        news_area.clear()
-        news_area.addstr(
-            1, 0, "Loading news...", curses.color_pair(ColorPair.WHITE_ON_BLACK)
-        )
-        self._show_source_title(news_area)
-        news_area.refresh()
-
     def _show_source_title(self, news_area: curses.window) -> None:
         """Show current source title."""
-        title = f"[{self.sources[self.source_index]}]"
-        news_area.addstr(
-            0, 0, title, curses.A_BOLD | curses.color_pair(ColorPair.YELLOW_ON_BLACK)
-        )
+        if self.sources:
+            title = f"[{self.sources[self.source_index]}]"
+        else:
+            title = "[No news sources configured]"
+        news_area.addstr(0, 0, title, curses.A_BOLD | curses.color_pair(ColorPair.YELLOW_ON_BLACK))
 
-    def _display_news_list(
-        self, news_area: curses.window, height: int, width: int
-    ) -> None:
+    def _display_news_list(self, news_area: curses.window, height: int, width: int) -> None:
         """Display the list of news items with scrolling support."""
         news_area.clear()
         self._show_source_title(news_area)
 
+        if self.loading:
+            news_area.addstr(1, 0, "Loading news...", curses.color_pair(ColorPair.WHITE_ON_BLACK))
+            news_area.refresh()
+            return
+
         if self.current_news is None:
-            news_area.addstr(
-                1, 0, "Loading news...", curses.color_pair(ColorPair.WHITE_ON_BLACK)
-            )
+            news_area.addstr(1, 0, "Loading news...", curses.color_pair(ColorPair.WHITE_ON_BLACK))
             news_area.refresh()
             return
 
         if not self.current_news:
-            news_area.addstr(
-                1, 0, "No news available", curses.color_pair(ColorPair.WHITE_ON_BLACK)
-            )
+            news_area.addstr(1, 0, "No news available", curses.color_pair(ColorPair.WHITE_ON_BLACK))
             news_area.refresh()
             return
 
@@ -306,7 +335,12 @@ class NewsManager:
             news_title = self.current_news[self.news_index]
             link = self.news_cache.get_link(news_title)
             if link:
-                os.system(f"xdg-open '{link}' > /dev/null 2>&1 &")
+                subprocess.Popen(
+                    ["xdg-open", link],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
             else:
                 self.logger.warning(f"No link found for news item: {news_title}")
         except Exception as e:
@@ -317,40 +351,80 @@ class NewsManager:
         if not self.current_news or self.news_index >= len(self.current_news):
             return
 
+        if height < 10 or width < 40:
+            return
+
+        news_title = self.current_news[self.news_index]
+        link = self.news_cache.get_link(news_title)
+
+        if not link:
+            self.logger.warning(f"No link found for news item: {news_title}")
+            return
+
+        # Show loading message
         try:
-            news_title = self.current_news[self.news_index]
-            link = self.news_cache.get_link(news_title)
-
-            if not link:
-                self.logger.warning(f"No link found for news item: {news_title}")
-                return
-
-            # Show loading message
-            loading_win = curses.newwin(5, 50, height // 2 - 2, width // 2 - 25)
-            loading_win.box()
-            loading_win.addstr(
-                2,
-                2,
-                "Fetching article content...",
-                curses.color_pair(ColorPair.WHITE_ON_BLACK),
+            loading_win = curses.newwin(
+                5, min(50, width - 4), height // 2 - 2, max(0, width // 2 - 25)
             )
-            loading_win.refresh()
+        except curses.error:
+            return
 
-            # Fetch full article
-            article_content = self.article_fetcher.fetch_article(link)
+        result: Dict[str, Any] = {"content": None, "done": False}
 
-            # Clear loading message
-            loading_win.clear()
-            loading_win.refresh()
-            del loading_win
+        def worker() -> None:
+            try:
+                result["content"] = self.article_fetcher.fetch_article(link)
+            except Exception as e:
+                result["content"] = f"# Error\n\nFailed to fetch article: {e}"
+            finally:
+                result["done"] = True
 
-            # Display article in scrollable window
-            self._display_article_window(
-                stdscr, article_content, news_title, width, height
-            )
+        Thread(target=worker, daemon=True).start()
 
-        except Exception as e:
-            self.logger.exception(f"Error showing news detail: {e}")
+        spinner = ("|", "/", "-", "\\")
+        idx = 0
+        deadline = time.monotonic() + 30
+        loading_win.nodelay(True)
+        cancelled = False
+        timed_out = False
+
+        while not result["done"] and not timed_out:
+            try:
+                loading_win.clear()
+                loading_win.box()
+                loading_win.addstr(
+                    2,
+                    2,
+                    f"Fetching article content... {spinner[idx]}",
+                    curses.color_pair(ColorPair.WHITE_ON_BLACK),
+                )
+                loading_win.refresh()
+            except curses.error:
+                pass
+            idx = (idx + 1) % len(spinner)
+            key = loading_win.getch()
+            if key in (ord("q"), 27):
+                cancelled = True
+                break
+            if time.monotonic() > deadline:
+                timed_out = True
+            time.sleep(0.1)
+
+        loading_win.clear()
+        loading_win.refresh()
+        del loading_win
+
+        if cancelled:
+            return
+
+        article_content = (
+            result["content"]
+            if result["done"] and result["content"] is not None
+            else "# Timeout\n\nThe article took too long to load."
+        )
+
+        # Display article in scrollable window
+        self._display_article_window(stdscr, article_content, news_title, width, height)
 
     def _display_article_window(
         self, stdscr: curses.window, content: str, title: str, width: int, height: int
@@ -359,9 +433,17 @@ class NewsManager:
         margin_h, margin_w = Layout.get_news_window_margins()
         new_win_height = height - margin_h
         new_win_width = width - margin_w
+
+        if new_win_height < 5 or new_win_width < 10:
+            return
+
         popup_y, popup_x = Layout.get_news_window_position()
 
-        news_window = curses.newwin(new_win_height, new_win_width, popup_y, popup_x)
+        try:
+            news_window = curses.newwin(new_win_height, new_win_width, popup_y, popup_x)
+        except curses.error:
+            return
+
         news_window.keypad(True)
         news_window.box()
 
@@ -391,9 +473,7 @@ class NewsManager:
             truncated_title = (
                 title[: new_win_width - 4] if len(title) > new_win_width - 4 else title
             )
-            news_window.addstr(
-                0, 2, truncated_title, curses.color_pair(ColorPair.YELLOW_ON_BLACK)
-            )
+            news_window.addstr(0, 2, truncated_title, curses.color_pair(ColorPair.YELLOW_ON_BLACK))
 
             # Display help text at bottom
             help_text = "[PgUp/PgDn/↑↓: Scroll] [o: Open in browser] [q/ESC: Close]"

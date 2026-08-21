@@ -18,7 +18,7 @@ Usage:
 """
 
 from .core import Config, Logger
-from .monitoring import SensorManager, NetworkMonitor, NewsManager
+from .monitoring import NetworkMonitor, NewsManager, SensorManager
 
 __version__ = "0.2.0"
 __author__ = "Sinan Islekdemir"

@@ -5,6 +5,7 @@ import socket
 import subprocess
 import time
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from ..core.config import Config
@@ -61,7 +62,8 @@ class NetworkMonitor:
         """Dump past data to a CSV file."""
         try:
             filename = f"{Config.NETWORK_CSV_PREFIX}{int(time.time())}.csv"
-            with open(filename, "w") as f:
+            filepath = Path.home() / filename
+            with open(filepath, "w") as f:
                 f.write("State,Local Address,Peer Address,Process,Reverse NS,Time\n")
                 for key, value in self.past_data.items():
                     # Clean commas from process names
@@ -70,7 +72,7 @@ class NetworkMonitor:
                     row = ",".join(str(v) for v in cleaned_value[:5])
                     f.write(row + "\n")
 
-            self.logger.info(f"Network data dumped to {filename}")
+            self.logger.info(f"Network data dumped to {filepath}")
 
         except Exception as e:
             self.logger.exception(f"Error dumping network data: {e}")
@@ -183,9 +185,7 @@ class NetworkMonitor:
             display_list.append(display_row)
 
         # Sort by status (active first) and time
-        display_list[1:] = sorted(
-            display_list[1:], key=lambda x: (x[0].startswith("RED!"), x[5])
-        )
+        display_list[1:] = sorted(display_list[1:], key=lambda x: (x[0].startswith("RED!"), x[5]))
 
         self.network_list = {"Network": display_list}
 

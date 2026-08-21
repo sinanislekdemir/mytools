@@ -1,9 +1,9 @@
 """Core functionality for mytools."""
 
+from . import ui
 from .config import Config
 from .logger import Logger
 from .themes import BoxChars, ColorPair, KeyBindings, Layout, Theme
-from . import ui
 
 __all__ = [
     "Config",

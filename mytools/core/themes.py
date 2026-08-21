@@ -109,70 +109,34 @@ class Theme:
             curses.init_color(8, 200, 200, 200)  # Dark gray
 
         # Standard colors
-        curses.init_pair(
-            ColorPair.WHITE_ON_BLACK, curses.COLOR_WHITE, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.YELLOW_ON_BLACK, curses.COLOR_YELLOW, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.GREEN_ON_BLACK, curses.COLOR_GREEN, curses.COLOR_BLACK
-        )
+        curses.init_pair(ColorPair.WHITE_ON_BLACK, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.YELLOW_ON_BLACK, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.GREEN_ON_BLACK, curses.COLOR_GREEN, curses.COLOR_BLACK)
         curses.init_pair(ColorPair.RED_ON_BLACK, curses.COLOR_RED, curses.COLOR_BLACK)
         curses.init_pair(ColorPair.BLACK_ON_CYAN, curses.COLOR_BLACK, curses.COLOR_CYAN)
-        curses.init_pair(
-            ColorPair.BLACK_ON_YELLOW, curses.COLOR_BLACK, curses.COLOR_YELLOW
-        )
+        curses.init_pair(ColorPair.BLACK_ON_YELLOW, curses.COLOR_BLACK, curses.COLOR_YELLOW)
         curses.init_pair(ColorPair.BLACK_ON_RED, curses.COLOR_BLACK, curses.COLOR_RED)
-        curses.init_pair(
-            ColorPair.BLACK_ON_GREEN, curses.COLOR_BLACK, curses.COLOR_GREEN
-        )
+        curses.init_pair(ColorPair.BLACK_ON_GREEN, curses.COLOR_BLACK, curses.COLOR_GREEN)
         curses.init_pair(ColorPair.CYAN_ON_BLACK, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(
-            ColorPair.BLACK_ON_WHITE, curses.COLOR_BLACK, curses.COLOR_WHITE
-        )
+        curses.init_pair(ColorPair.BLACK_ON_WHITE, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
         # Subtle striped colors (using dim attribute for darker background)
-        curses.init_pair(
-            ColorPair.WHITE_ON_DARK_GRAY, curses.COLOR_WHITE, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.YELLOW_ON_DARK_GRAY, curses.COLOR_YELLOW, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.GREEN_ON_DARK_GRAY, curses.COLOR_GREEN, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.RED_ON_DARK_GRAY, curses.COLOR_RED, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.CYAN_ON_DARK_GRAY, curses.COLOR_CYAN, curses.COLOR_BLACK
-        )
+        curses.init_pair(ColorPair.WHITE_ON_DARK_GRAY, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.YELLOW_ON_DARK_GRAY, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.GREEN_ON_DARK_GRAY, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.RED_ON_DARK_GRAY, curses.COLOR_RED, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.CYAN_ON_DARK_GRAY, curses.COLOR_CYAN, curses.COLOR_BLACK)
 
         # Enhanced UI colors for modern look
-        curses.init_pair(
-            ColorPair.BRIGHT_WHITE_ON_BLUE, curses.COLOR_WHITE, curses.COLOR_BLUE
-        )
-        curses.init_pair(
-            ColorPair.BRIGHT_YELLOW_ON_BLUE, curses.COLOR_YELLOW, curses.COLOR_BLUE
-        )
+        curses.init_pair(ColorPair.BRIGHT_WHITE_ON_BLUE, curses.COLOR_WHITE, curses.COLOR_BLUE)
+        curses.init_pair(ColorPair.BRIGHT_YELLOW_ON_BLUE, curses.COLOR_YELLOW, curses.COLOR_BLUE)
         curses.init_pair(ColorPair.WHITE_ON_BLUE, curses.COLOR_WHITE, curses.COLOR_BLUE)
         curses.init_pair(ColorPair.BLUE_ON_BLACK, curses.COLOR_BLUE, curses.COLOR_BLACK)
-        curses.init_pair(
-            ColorPair.MAGENTA_ON_BLACK, curses.COLOR_MAGENTA, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.BRIGHT_GREEN_ON_BLACK, curses.COLOR_GREEN, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.BRIGHT_CYAN_ON_BLACK, curses.COLOR_CYAN, curses.COLOR_BLACK
-        )
-        curses.init_pair(
-            ColorPair.BLACK_ON_MAGENTA, curses.COLOR_BLACK, curses.COLOR_MAGENTA
-        )
-        curses.init_pair(
-            ColorPair.WHITE_ON_MAGENTA, curses.COLOR_WHITE, curses.COLOR_MAGENTA
-        )
+        curses.init_pair(ColorPair.MAGENTA_ON_BLACK, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.BRIGHT_GREEN_ON_BLACK, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.BRIGHT_CYAN_ON_BLACK, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(ColorPair.BLACK_ON_MAGENTA, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
+        curses.init_pair(ColorPair.WHITE_ON_MAGENTA, curses.COLOR_WHITE, curses.COLOR_MAGENTA)
 
     @staticmethod
     def get_status_color(

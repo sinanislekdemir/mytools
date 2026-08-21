@@ -113,9 +113,7 @@ class GPUMonitor:
 
         except Exception as e:
             self.logger.warning(f"Error getting nouveau GPU info: {e}")
-            return {
-                "Error": f"GPU monitoring error: {str(e)}"[:width].ljust(width, " ")
-            }
+            return {"Error": f"GPU monitoring error: {str(e)}"[:width].ljust(width, " ")}
 
     def get_nvidia_info(self, width: int) -> Dict[str, str]:
         """Get GPU information using nvidia-smi or nouveau drivers."""
@@ -129,8 +127,7 @@ class GPUMonitor:
             if (
                 cache_key in self._gpu_cache
                 and cache_key in self._gpu_cache_time
-                and current_time - self._gpu_cache_time[cache_key]
-                < self._gpu_cache_timeout
+                and current_time - self._gpu_cache_time[cache_key] < self._gpu_cache_timeout
             ):
                 return self._gpu_cache[cache_key]
 
@@ -170,9 +167,7 @@ class GPUMonitor:
 
         except Exception as e:
             self.logger.warning(f"Error getting GPU info: {e}")
-            return {
-                "Error": f"GPU monitoring error: {str(e)}"[:width].ljust(width, " ")
-            }
+            return {"Error": f"GPU monitoring error: {str(e)}"[:width].ljust(width, " ")}
 
     def get_gpu_processes(self, max_processes: int = 20) -> list:
         """Get GPU processes using full nvidia-smi output to capture all GPU processes."""
@@ -186,8 +181,7 @@ class GPUMonitor:
             if (
                 cache_key in self._gpu_cache
                 and cache_key in self._gpu_cache_time
-                and current_time - self._gpu_cache_time[cache_key]
-                < self._gpu_cache_timeout
+                and current_time - self._gpu_cache_time[cache_key] < self._gpu_cache_timeout
             ):
                 return self._gpu_cache[cache_key]
 
@@ -238,9 +232,7 @@ class GPUMonitor:
                                 if part.endswith("MiB"):
                                     memory_mb = int(part[:-3])
                                     memory_bytes = memory_mb * 1024 * 1024
-                                    memory_str = self._bytes_to_human_readable_gpu(
-                                        memory_bytes
-                                    )
+                                    memory_str = self._bytes_to_human_readable_gpu(memory_bytes)
                                     break
 
                             # Get process name (everything between type and memory)
@@ -254,11 +246,7 @@ class GPUMonitor:
                                     mem_idx = i
                                     break
 
-                            if (
-                                type_idx != -1
-                                and mem_idx != -1
-                                and mem_idx > type_idx + 1
-                            ):
+                            if type_idx != -1 and mem_idx != -1 and mem_idx > type_idx + 1:
                                 command_parts = parts[type_idx + 1 : mem_idx]
                                 command = " ".join(command_parts)
 
@@ -286,23 +274,21 @@ class GPUMonitor:
 
             # Add summary row showing totals
             try:
-                gpu_total_cmd = "nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null"
+                gpu_total_cmd = (
+                    "nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null"
+                )
                 gpu_total_result = os.popen(gpu_total_cmd).read().strip()
                 if gpu_total_result:
                     total_gpu_mb = int(gpu_total_result.split("\n")[0])
                     total_processes_mb = sum(proc[5] for proc in process_data)
 
-                    total_gpu_str = self._bytes_to_human_readable_gpu(
-                        total_gpu_mb * 1024 * 1024
-                    )
+                    total_gpu_str = self._bytes_to_human_readable_gpu(total_gpu_mb * 1024 * 1024)
                     total_proc_str = self._bytes_to_human_readable_gpu(
                         total_processes_mb * 1024 * 1024
                     )
 
                     processes.append(["", "", "", "---", "---"])
-                    processes.append(
-                        ["SUM", "PROC", "", total_proc_str, "Process Total"]
-                    )
+                    processes.append(["SUM", "PROC", "", total_proc_str, "Process Total"])
                     processes.append(["GPU", "TOTL", "", total_gpu_str, "GPU Total"])
             except Exception as e:
                 self.logger.warning(f"Error calculating GPU totals: {e}")
@@ -367,9 +353,7 @@ class GPUMonitor:
             # Sort by memory usage (descending)
             header = processes[0]
             data_rows = processes[1:]
-            data_rows.sort(
-                key=lambda x: int(x[5]) if x[5].isdigit() else 0, reverse=True
-            )
+            data_rows.sort(key=lambda x: int(x[5]) if x[5].isdigit() else 0, reverse=True)
 
             # Remove the sorting helper column before returning
             sorted_processes = [header] + [
